@@ -1,0 +1,1354 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Global Issues — Discussion Evaluator</title>
+<link rel="preconnect" href="https://www.gstatic.com" crossorigin>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<style>
+  :root{
+    --ink:#1c2733;
+    --paper:#fbf9f4;
+    --panel:#ffffff;
+    --line:#dcd6c8;
+    --brand:#2f6b5e;      /* deep teal — reads as "field/global" */
+    --brand-soft:#e4efeb;
+    --amber:#c8862b;
+    --danger:#b23b3b;
+    --muted:#5f6b74;
+    --good:#2f6b5e;
+    --shadow:0 1px 2px rgba(28,39,51,.06),0 8px 24px rgba(28,39,51,.06);
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0}
+  body{
+    background:var(--paper);
+    color:var(--ink);
+    font-family:"Iowan Old Style","Palatino Linotype",Georgia,serif;
+    line-height:1.5;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:820px;margin:0 auto;padding:28px 20px 80px}
+  header.masthead{
+    border-bottom:2px solid var(--ink);
+    padding-bottom:14px;margin-bottom:26px;
+    display:flex;align-items:baseline;justify-content:space-between;gap:12px;flex-wrap:wrap;
+  }
+  .brandmark{font-size:13px;letter-spacing:.14em;text-transform:uppercase;color:var(--brand);font-family:ui-sans-serif,system-ui,sans-serif;font-weight:600}
+  h1{font-size:30px;line-height:1.1;margin:6px 0 0;font-weight:700}
+  .sub{color:var(--muted);font-size:15px;margin-top:4px}
+  .whoami{font-family:ui-sans-serif,system-ui,sans-serif;font-size:13px;color:var(--muted);text-align:right}
+  .whoami b{color:var(--ink)}
+  .whoami button{margin-top:4px}
+
+  .card{
+    background:var(--panel);border:1px solid var(--line);border-radius:10px;
+    padding:22px;box-shadow:var(--shadow);margin-bottom:22px;
+  }
+  label{display:block;font-family:ui-sans-serif,system-ui,sans-serif;font-size:13px;font-weight:600;margin-bottom:6px;color:var(--ink)}
+  .hint{font-family:ui-sans-serif,system-ui,sans-serif;font-size:13px;color:var(--muted);margin:0 0 14px}
+  input[type=text],select{
+    width:100%;padding:11px 12px;font-size:16px;border:1px solid var(--line);
+    border-radius:8px;background:#fff;font-family:ui-sans-serif,system-ui,sans-serif;color:var(--ink);
+  }
+  input:focus,select:focus{outline:2px solid var(--brand);outline-offset:1px;border-color:var(--brand)}
+  .row{display:flex;gap:14px;flex-wrap:wrap}
+  .row>div{flex:1 1 220px}
+
+  button{
+    font-family:ui-sans-serif,system-ui,sans-serif;font-size:15px;font-weight:600;
+    border:1px solid var(--brand);background:var(--brand);color:#fff;
+    padding:11px 18px;border-radius:8px;cursor:pointer;
+  }
+  button.secondary{background:#fff;color:var(--brand)}
+  button.ghost{background:transparent;border-color:var(--line);color:var(--muted);padding:6px 12px;font-size:13px}
+  button.rec{background:var(--danger);border-color:var(--danger)}
+  button:disabled{opacity:.5;cursor:not-allowed}
+
+  .phrasebox{background:var(--brand-soft);border:1px solid var(--line);border-radius:8px;padding:14px 16px;margin-top:14px}
+  .phrasebox h3{margin:0 0 4px;font-size:16px}
+  .goal{font-family:ui-sans-serif,system-ui,sans-serif;font-size:13px;color:var(--brand);font-weight:600;margin-bottom:10px}
+  .phrasebox ul{margin:8px 0 0;padding-left:18px}
+  .phrasebox li{margin:3px 0;font-size:15px}
+  .cat{font-family:ui-sans-serif,system-ui,sans-serif;font-size:12px;letter-spacing:.04em;color:var(--muted);margin-top:10px;font-weight:600}
+
+  .reclive{font-family:ui-sans-serif,system-ui,sans-serif;font-size:14px;color:var(--muted);min-height:1.4em}
+  .meterwrap{margin-top:12px;display:flex;align-items:center;gap:12px}
+  .meter{flex:1 1 auto;height:12px;background:#e7e2d6;border-radius:999px;overflow:hidden;border:1px solid var(--line)}
+  .meterfill{height:100%;width:0%;background:var(--good);border-radius:999px;transition:width .08s linear}
+  .meterfill.low{background:#c8b24a}
+  .meterfill.loud{background:var(--danger)}
+  .meterhint{font-family:ui-sans-serif,system-ui,sans-serif;font-size:13px;color:var(--muted);min-width:11em;text-align:left}
+  .meterhint.warn{color:#8a6d1a;font-weight:600}
+  .timer{font-family:ui-sans-serif,system-ui,sans-serif;font-variant-numeric:tabular-nums;font-size:20px;font-weight:700;color:var(--ink);min-width:3.2em;text-align:center}
+  .timer.low{color:var(--danger)}
+  .sessionbox{margin-top:14px;padding:12px 14px;border-radius:8px;border:1px solid var(--line);font-family:ui-sans-serif,system-ui,sans-serif;font-size:14px}
+  .sessionbox.armed{background:#fdf3e3;border-color:#eccf9a;color:#7a541a}
+  .sessionbox.live{background:#e4efeb;border-color:#9fc3b8;color:#1c5848}
+  .sessionbox b{font-weight:700}
+  .lockedunit{padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:var(--brand-soft);font-family:ui-sans-serif,system-ui,sans-serif;font-size:15px;font-weight:600;color:var(--ink)}
+  .lockicon{opacity:.7}
+  .transcript{background:#fff;border:1px dashed var(--line);border-radius:8px;padding:12px;min-height:70px;margin-top:12px;font-size:15px;white-space:pre-wrap}
+  .dot{display:inline-block;width:9px;height:9px;border-radius:50%;background:var(--danger);margin-right:7px;vertical-align:middle;animation:pulse 1s infinite}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.25}}
+  @media (prefers-reduced-motion:reduce){.dot{animation:none}}
+
+  .scoregrid{display:flex;gap:16px;flex-wrap:wrap;margin:6px 0 4px}
+  .score{flex:1 1 160px;border:1px solid var(--line);border-radius:8px;padding:14px 16px;text-align:center}
+  .score .n{font-size:34px;font-weight:700;line-height:1}
+  .score .n small{font-size:16px;color:var(--muted)}
+  .score .k{font-family:ui-sans-serif,system-ui,sans-serif;font-size:12px;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);margin-top:6px}
+  .score.total{background:var(--ink);color:#fff;border-color:var(--ink)}
+  .score.total .k{color:#c9d2d8}
+  .found{font-family:ui-sans-serif,system-ui,sans-serif;font-size:13px;margin-top:10px}
+  .chip{display:inline-block;background:var(--brand-soft);border:1px solid var(--line);border-radius:999px;padding:3px 10px;margin:3px 4px 0 0;font-size:13px}
+
+  table{width:100%;border-collapse:collapse;font-family:ui-sans-serif,system-ui,sans-serif;font-size:14px}
+  th,td{text-align:left;padding:9px 8px;border-bottom:1px solid var(--line);vertical-align:top}
+  th{font-size:12px;letter-spacing:.04em;text-transform:uppercase;color:var(--muted)}
+  td.num{font-variant-numeric:tabular-nums;font-weight:600}
+  .empty{color:var(--muted);font-family:ui-sans-serif,system-ui,sans-serif;font-size:14px;padding:8px 0}
+
+  .banner{border-radius:8px;padding:12px 14px;font-family:ui-sans-serif,system-ui,sans-serif;font-size:14px;margin-bottom:16px}
+  .banner.warn{background:#fdf3e3;border:1px solid #eccf9a;color:#7a541a}
+  .banner.err{background:#fbeaea;border:1px solid #e2b6b6;color:#8a2b2b}
+  .steps{font-family:ui-sans-serif,system-ui,sans-serif;font-size:14px;color:var(--muted)}
+  a{color:var(--brand)}
+  .hidden{display:none}
+
+
+  /* --- added for login + teacher dashboard --- */
+  details{font-family:ui-sans-serif,system-ui,sans-serif;font-size:14px;margin-top:4px}
+  details summary{cursor:pointer;color:var(--brand);font-weight:600}
+  .tabs{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0}
+  .msgline{font-family:ui-sans-serif,system-ui,sans-serif;font-size:14px;margin:8px 0 0;min-height:1.2em}
+  .msgline.err{color:var(--danger)} .msgline.ok{color:var(--good)}
+  .subcard{border:1px solid var(--line);border-radius:8px;padding:16px;margin-top:18px;background:#fff}
+  tr.trow td{border-bottom:none;padding-bottom:2px}
+  tr.trow2 td{padding-top:0}
+  /* transcript is microphone output only — read-only, not an input */
+  .transcript{border-style:solid !important;background:#fbfaf6;caret-color:transparent;cursor:default}
+  .transcript:focus{outline:none}
+
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="masthead">
+    <div>
+      <div class="brandmark">Global Issues</div>
+      <h1>Discussion Evaluator</h1>
+      <div class="sub">Record your end-of-class discussion and get scored on pronunciation, phrase use, and grammatical accuracy.</div>
+    </div>
+    <div class="whoami hidden" id="whoami">
+      <div>Signed in as <b id="whoName"></b><span id="whoTeacher"></span></div>
+      <button class="ghost" id="logoutBtn">Sign out</button>
+    </div>
+  </header>
+
+  <div class="banner err hidden" id="speechWarn">
+    This browser can’t record speech. Use <b>Google Chrome</b> on a laptop/desktop for the recording feature.
+  </div>
+  <div class="banner warn hidden" id="statusWarn"></div>
+
+  <!-- LOGIN -->
+  <section class="card" id="loginCard">
+    <h2 style="margin:0 0 4px;font-size:20px">Sign in</h2>
+    <p class="hint">Choose your class and student ID, then enter your password. First time logging in? The password you type becomes your password — remember it.</p>
+    <div class="row">
+      <div><label for="loginCls">Class</label><select id="loginCls"></select></div>
+      <div><label for="sid">Student ID</label><select id="sid"></select></div>
+    </div>
+    <div class="row" style="margin-top:12px">
+      <div><label for="pw">Password</label><input type="password" id="pw" placeholder="Your password" autocomplete="off"></div>
+      <div style="flex:0 0 auto;display:flex;align-items:flex-end"><button id="loginBtn">Continue</button></div>
+    </div>
+    <p class="msgline" id="loginMsg"></p>
+    <p style="margin:10px 0 0"><button class="ghost" id="teacherLink">Teacher dashboard</button></p>
+  </section>
+
+  <!-- STUDENT: record -->
+  <section class="card hidden" id="recordCard">
+    <label for="unit" id="unitPrompt">Which unit did you discuss today?</label>
+    <p class="hint" id="unitHint">Pick the unit for this class. Only the units on the syllabus are listed.</p>
+    <select id="unit"></select>
+
+    <div class="phrasebox" id="phrasebox"></div>
+
+    <!-- synced session banner (shown to students when a class session is armed/live) -->
+    <div id="sessionBox" class="sessionbox hidden"></div>
+
+    <div style="margin-top:18px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+      <button id="recBtn">● Start recording</button>
+      <button class="secondary" id="micCheckBtn">🎧 Mic check</button>
+      <button class="secondary hidden" id="pauseBtn">Pause</button>
+      <button class="secondary hidden" id="stopBtn">Stop</button>
+      <span id="timer" class="timer">5:00</span>
+      <label style="font-family:ui-sans-serif,system-ui,sans-serif;font-size:13px;color:var(--muted);display:inline-flex;align-items:center;gap:6px;margin:0">
+        Length
+        <select id="timerLen" style="width:auto;padding:4px 8px;font-size:13px">
+          <option value="180">3 min</option>
+          <option value="300" selected>5 min</option>
+          <option value="420">7 min</option>
+          <option value="600">10 min</option>
+        </select>
+      </label>
+      <span class="reclive" id="recLive"></span>
+    </div>
+    <div id="meterWrap" class="meterwrap hidden">
+      <div class="meter"><div id="meterFill" class="meterfill"></div></div>
+      <span id="meterHint" class="meterhint">&nbsp;</span>
+    </div>
+    <div class="transcript" id="transcript" aria-live="polite" contenteditable="false" spellcheck="false" tabindex="-1">Your spoken words will appear here as you talk…</div>
+    <p class="hint" style="margin:6px 0 0">🎙 This is a read-only transcript from your microphone. You can’t type your discussion — please speak it aloud.</p>
+
+    <div style="margin-top:16px" class="hidden" id="resultBlock">
+      <div class="scoregrid">
+        <div class="score"><div class="n" id="pScore">0<small>/7</small></div><div class="k">Pronunciation</div></div>
+        <div class="score"><div class="n" id="hScore">0<small>/7</small></div><div class="k">Phrase use</div></div>
+        <div class="score"><div class="n" id="gScore">0<small>/6</small></div><div class="k">Grammar</div></div>
+        <div class="score total"><div class="n" id="tScore">0<small>/20</small></div><div class="k">Total</div></div>
+      </div>
+      <div class="found" id="foundPhrases"></div>
+      <div style="margin-top:16px">
+        <button id="submitBtn">Submit this evaluation</button>
+        <span class="reclive" id="submitMsg"></span>
+      </div>
+    </div>
+  </section>
+
+  <!-- RESULTS (student's own) -->
+  <section class="card hidden" id="resultsCard">
+    <div style="display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap">
+      <h2 style="margin:0;font-size:20px" id="resultsTitle">Your evaluations</h2>
+      <button class="ghost" id="refreshBtn">Refresh</button>
+    </div>
+    <div id="resultsBody"></div>
+  </section>
+
+  <!-- TEACHER dashboard (rendered dynamically) -->
+  <section class="card hidden" id="teacherCard"></section>
+
+</div>
+
+<script>
+/* ============================================================
+   Same Firebase project as your other homework platforms; this
+   tool stores its data in its own collection (gi_discussion_eval),
+   so it won't clash with the HW or vocabulary tools.
+   Leave apiKey empty to run in local (this-device-only) test mode.
+   ============================================================ */
+const firebaseConfig = {
+  apiKey: "AIzaSyDDyJkeuVXr1UqSYiV0v1RPyhvqcG0VvBQ",
+  authDomain: "mgu-2nd-sem--26-hw-platform.firebaseapp.com",
+  projectId: "mgu-2nd-sem--26-hw-platform",
+  storageBucket: "mgu-2nd-sem--26-hw-platform.firebasestorage.app",
+  messagingSenderId: "581651694527",
+  appId: "1:581651694527:web:df5d8162900e8fc712d70a"
+};
+const TEACHER_PASSWORD = "983529";       // teacher dashboard password
+const COL = "gi_discussion_eval";
+// Google Sheets mirror: paste your Apps Script Web-app URL (ends in /exec)
+// between the quotes. Leave "" to disable the mirror (Firebase still saves).
+const SHEET_URL = "https://script.google.com/macros/s/AKfycbwq0gxJhZcYSm8WjOKBUdDqwi6MjtG3dq-Acd3es7FsIAHB6djCyiIUK_trW0My2S0B8Q/exec";
+/* ============================================================ */
+
+const ROSTERS = {"wed2": ["26410064", "26410087", "26410183", "26411080", "26411173", "26412033", "26412067", "26412100", "26412112", "26413057", "26413086", "26413145", "26414005", "26414192", "26415095", "26416030", "26416157", "26416203", "26417075", "26417083", "26418152", "26418171", "26418188", "26419048"], "fri1": ["25KS1143", "26KS1020", "26KS1022", "26KS1029", "26KS1037", "26KS1038", "26KS1041", "26KS1043", "26KS1050", "26KS1052", "26KS1062", "26KS1071", "26KS1074", "26KS1079", "26KS1081", "26KS1137", "26KS1145", "26KS1162", "26KS1192", "26KS1194", "26KS1215", "26KS1260"]};
+const CLASSMETA = {"wed2": "Wed 2", "fri1": "Fri 1", "fri5": "Fri 5"};
+ROSTERS["fri5"] = ["1W241093","1W242236","1W252069","1W252092","1W252103","1W252112","1W252116","1W252136","1W252183","1W252221","1W252234","1W252237","1Y23B065","1Y24F137","1Y25D031","1Y25D033","1Y25D051","1Y25D062","1Y25D075","1Y25D084","1Y25D096","1Y25D102","1Y25D104","1Y25D108","1Y25D111","1Y25D121","1Y25D128","1Y25D141"];
+const ORDER = ["1","2","3","4","6","10","11","12","15"];
+// Which topics each class chooses from. Wed 2 & Fri 1 use the textbook units;
+// Fri 5 uses the discussion-skill phrase bank (F5-*).
+const ORDER_BY_CLASS = { wed2: ORDER, fri1: ORDER, fri5: ["F5-1","F5-2","F5-3"] };
+function unitsForClass(cls){ return ORDER_BY_CLASS[cls] || ORDER; }
+// Fri 5 topics aren't numbered "Units", so label them by title only.
+function unitLabel(u){ return /^F5-/.test(u) ? UNITS[u].title : ('Unit '+u+' — '+UNITS[u].title); }
+// Label a stored evaluation (works for old textbook units and Fri 5 topics).
+function evUnitText(u,title){ return /^F5-/.test(String(u)) ? (title||UNITS[u]&&UNITS[u].title||'') : ('Unit '+u+(title?' — '+title:'')); }
+function ordinal(n){ n=Number(n)||0; var s=['th','st','nd','rd'], v=n%100; return n+(s[(v-20)%10]||s[v]||s[0]); }
+function setPrompt(cls){
+  const p=$('unitPrompt'), h=$('unitHint');
+  if(cls==='fri5'){
+    if(p) p.textContent='Discuss your group presentation topic in the following three activities.';
+    if(h) h.textContent='Choose an activity, then wait for your teacher to start the recording.';
+  }else{
+    if(p) p.textContent='Which unit did you discuss today?';
+    if(h) h.textContent='Pick the unit for this class. Only the units on the syllabus are listed.';
+  }
+}
+
+const UNITS = {
+  "1": {
+    title: "The Cashless Society",
+    goal: "Discussing opinions",
+    groups: {
+      "Asking for an opinion": ["Do you think the world should become cashless?","What do you think?","What’s your opinion?"],
+      "Giving an opinion and a reason": ["I strongly believe that …","I think that … because …","I’m not sure, but perhaps … since …"],
+      "Reacting": ["I see.","That’s a good point.","I see what you mean."]
+    }
+  },
+  "2": {
+    title: "Fast Fashion",
+    goal: "Asking questions if you didn’t hear or understand",
+    groups: {
+      "Interrupting": ["Sorry, but …","Excuse me …","I’m sorry to interrupt, but …"],
+      "Ask the speaker to repeat": ["Could you repeat that, please?","Could you speak a little slower, please?","Could you speak a little louder, please?","Did you say … or …?"],
+      "Ask the speaker to explain": ["What does … mean?","Could you reword that for me, please?"]
+    }
+  },
+  "3": {
+    title: "Plastic Packaging",
+    goal: "Agreeing and disagreeing",
+    groups: {
+      "Agreeing": ["I agree. As you said, …","I think so too. Adding to what you said, …","That’s a good point.","Exactly!"],
+      "Partially agreeing": ["I partially agree, but …","I agree that …, but I don’t think …"],
+      "Disagreeing politely": ["That’s a good point, but …","I understand what you’re saying, but in my opinion, …"]
+    }
+  },
+  "4": {
+    title: "Cell Phone Etiquette",
+    goal: "Giving yourself time to think",
+    groups: {
+      "Thinking sound": ["Hmm","Uh","Um"],
+      "Thinking phrase": ["Let me think.","That’s a good question.","That’s a difficult question.","I’ve never thought about that before."],
+      "Repeating the question": ["“What should they do?” → What should they do?"],
+      "Delaying your answer": ["What do you think?","Can you come back to me?"]
+    }
+  },
+  "6": {
+    title: "Social Media",
+    goal: "Continuing a discussion",
+    groups: {
+      "Reacting": ["That’s a good point.","That’s interesting.","Is that right?","Oh yeah?","Really?","I didn’t know that."],
+      "Asking a follow-up question": ["Could you explain more about that?","Can you give me an example?","What do you mean?","What happened?","When did this happen?","Where did this happen?","Who did it?","Why did they do it?","How did they do it?"]
+    }
+  },
+  "10": {
+    title: "Voting Age",
+    goal: "Checking your understanding",
+    groups: {
+      "Checking understanding": ["Can I check my understanding?","Did you say that …?","You mean that …?","So you think that …?","Is that correct?"],
+      "Confirming the meaning": ["Yes, that’s right.","Exactly."],
+      "Clarifying the meaning": ["Not exactly. I mean that …","Actually, I meant …"],
+      "Confirming understanding": ["I see.","Okay. I got it."]
+    }
+  },
+  "11": {
+    title: "Rethinking Zoos",
+    goal: "Leading a discussion",
+    groups: {
+      "Introducing the topic": ["Today’s topic is …","Today we’re going to discuss …"],
+      "Introducing the first question": ["Let’s start with the first question."],
+      "Involving people": ["What do you think, …?","Do you agree with …?","Does everyone agree?"],
+      "Checking / moving on": ["Does anyone have anything to add?","Let’s move on to the next question."],
+      "Ending the discussion": ["Thanks everyone. That was a good discussion."]
+    }
+  },
+  "12": {
+    title: "Alternative Energy",
+    goal: "Discussing the pros and cons of something",
+    groups: {
+      "Asking about pros and cons": ["What are the pros and cons of …?","What are the advantages of …?","What are the disadvantages of …?"],
+      "Describing the pros": ["The advantages are that …","One benefit is that …","Another pro is that …"],
+      "Describing the cons": ["The disadvantages are that …","One drawback is …","Another con is that …"]
+    }
+  },
+  "15": {
+    title: "Britain’s Royal Family",
+    goal: "Summarizing a discussion",
+    groups: {
+      "Introducing the summary": ["So, let me summarize our discussion.","I’d like to summarize our thoughts about this question."],
+      "Summarizing the key points": ["… thinks that …","We agree that …","Most people think that …","Some people believe that …"],
+      "Checking the summary": ["Is that correct?","Does anyone want to add anything?"]
+    }
+  },
+
+  /* ---- Fri 5: discussion-skill phrase bank (not textbook units) ---- */
+  "F5-1": {
+    title: "Participating in a Discussion",
+    goal: "contribute to a discussion with facts, opinions, questions, and conclusions",
+    groups: {
+      "State a fact": ["I hear that …","I saw on the news last night that …","According to …,"],
+      "Give an opinion": ["I think that …","In my opinion, …"],
+      "Ask a factual question": ["What is …?","How many …?","Who was …?"],
+      "Ask an opinion question": ["What do you think …?","What's your opinion about …?"],
+      "Draw a conclusion": ["So, if … then …","It seems that …"]
+    }
+  },
+  "F5-2": {
+    title: "Leading a Discussion",
+    goal: "lead a discussion by setting the agenda and controlling participation",
+    groups: {
+      "Getting started": ["Thank you for coming here today.","Today we're going to talk about …"],
+      "Controlling time": ["Let's take about ___ minutes per person.","For the sake of time, let's move on to the next person.","Could you please finish up?"],
+      "Changing topics / speakers": ["Now, let's move on to the next topic.","Now, let's move on to the next speaker."],
+      "Nominating a speaker": ["___, what do you think about ___?","What do YOU think about that, ___?"],
+      "Taking control": ["Sorry to interrupt, but …"],
+      "Concluding": ["Well, it looks like we have run out of time. So, let's stop here.","That's all for today. Thank you very much."]
+    }
+  },
+  "F5-3": {
+    title: "Controlling a Discussion",
+    goal: "keep a discussion going with questions, clarifications, and summaries",
+    groups: {
+      "Questions": ["Why …?","How …?"],
+      "Clarifications": ["What do you mean by that?","Do you mean (that) …?"],
+      "Summaries": ["So, in short, …","So, you think …","To sum up, …"],
+      "Language use": ["Could you say that in English, please?","How do you say ___ in English?"]
+    }
+  }
+};
+
+function stems(unit){
+  const list = [];
+  for(const g in UNITS[unit].groups){
+    UNITS[unit].groups[g].forEach(p=>{
+      // Keep only the distinctive lead-in: everything before the first
+      // placeholder gap (…), so "I think that … because …" matches on
+      // "i think that" and won't require the exact filler words.
+      let s = p.toLowerCase()
+        .split(/…|\.\.\./)[0]
+        .replace(/[“”"?.!→]/g,' ')
+        .replace(/[’']/g,"'")
+        .replace(/\s+/g,' ')
+        .trim();
+      if(s.length>=3) list.push({label:p, stem:s});
+    });
+  }
+  return list;
+}
+
+/* ---------- data layer: Firebase if configured, else localStorage ---------- */
+let useFB=false, db=null, ready=Promise.resolve(), initReason='';
+function withTimeout(p, ms, fb){ return Promise.race([ p, new Promise(res=>setTimeout(()=>res(fb), ms)) ]); }
+function initStore(){
+  ready=(async()=>{
+    try{
+      if(!(firebaseConfig && firebaseConfig.apiKey)){ initReason='no-config'; return; }
+      if(typeof firebase==='undefined'){ initReason='sdk-blocked'; return; }
+      firebase.initializeApp(firebaseConfig);
+      db=firebase.firestore();
+      db.enablePersistence({synchronizeTabs:true}).catch(()=>{});
+      useFB=true;
+      await Promise.race([ firebase.auth().signInAnonymously().catch(e=>{ initReason='auth:'+((e&&e.code)||''); }),
+                           new Promise(r=>setTimeout(r,4000)) ]);
+    }catch(e){ initReason='init:'+((e&&e.message)||e); console.warn('Firebase init failed:',e); useFB=false; }
+  })();
+  return ready;
+}
+async function loadDoc(id){ await ready;
+  if(useFB){ const d=await db.collection(COL).doc(id).get(); return d.exists?d.data():null; }
+  const s=localStorage.getItem(COL+'/'+id); return s?JSON.parse(s):null;
+}
+async function saveDoc(id,data){ await ready;
+  data.updatedAt=Date.now();
+  if(useFB){ await db.collection(COL).doc(id).set(data,{merge:false}); return; }
+  localStorage.setItem(COL+'/'+id, JSON.stringify(data));
+}
+async function classDocs(cls){ await ready;
+  if(useFB){
+    const ids=(ROSTERS[cls]||[]).map(sn=>cls+'_'+sn);
+    const one=id=>withTimeout(db.collection(COL).doc(id).get().then(s=>s.exists?s.data():null).catch(()=>null),8000,null);
+    return (await Promise.all(ids.map(one))).filter(Boolean);
+  }
+  const out=[]; for(let i=0;i<localStorage.length;i++){ const k=localStorage.key(i);
+    if(k&&k.startsWith(COL+'/')){ try{ const v=JSON.parse(localStorage.getItem(k)); if(v.cls===cls) out.push(v); }catch(e){} } }
+  return out;
+}
+
+/* ---- synced session (teacher-controlled group start), one doc per class ---- */
+function sessionId(cls){ return '_session_'+cls; }
+async function writeSession(cls,data){ await ready;
+  data.updatedAt=Date.now();
+  if(useFB){ await db.collection(COL).doc(sessionId(cls)).set(data,{merge:false}); return; }
+  localStorage.setItem(COL+'/'+sessionId(cls), JSON.stringify(data));
+}
+async function readSession(cls){ await ready;
+  if(useFB){ const d=await db.collection(COL).doc(sessionId(cls)).get(); return d.exists?d.data():null; }
+  const s=localStorage.getItem(COL+'/'+sessionId(cls)); return s?JSON.parse(s):null;
+}
+// Subscribe to a class's session doc; cb fires on every change. Returns an
+// unsubscribe fn. Falls back to polling when Firebase isn't available.
+function subscribeSession(cls,cb){
+  if(useFB && db){
+    try{ return db.collection(COL).doc(sessionId(cls)).onSnapshot(s=>cb(s.exists?s.data():null), ()=>{}); }catch(e){}
+  }
+  const iv=setInterval(async()=>{ try{ cb(await readSession(cls)); }catch(e){} },2000);
+  return ()=>clearInterval(iv);
+}
+
+async function hash(s){
+  const buf=await crypto.subtle.digest('SHA-256', new TextEncoder().encode('gidisc::'+s));
+  return [...new Uint8Array(buf)].map(b=>b.toString(16).padStart(2,'0')).join('');
+}
+
+/* ------------------ small helpers ------------------ */
+const $ = id => document.getElementById(id);
+function show(el){ if(el) el.classList.remove('hidden'); }
+function hide(el){ if(el) el.classList.add('hidden'); }
+function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+
+/* ------------------ session ------------------ */
+let S=null;    // {id, cls, sn, doc}
+
+async function setStatus(){
+  const b=$('statusWarn');
+  if(typeof firebase==='undefined'){
+    b.className='banner err';
+    b.innerHTML='<b>Couldn’t load Firebase.</b> The Google Firebase scripts didn’t load, so results save only on this device. Open this page at its <b>https://…</b> web address in <b>Google Chrome</b> (not as a downloaded file), and make sure your network doesn’t block <code>gstatic.com</code>.';
+    show(b); return;
+  }
+  if(!useFB){
+    b.className='banner err';
+    b.innerHTML='<b>Firebase didn’t start</b> (<code>'+esc(initReason||'unknown')+'</code>). Results save only on this device.';
+    show(b); return;
+  }
+  b.className='banner warn'; b.textContent='Checking the connection to the teacher database…'; show(b);
+  try{
+    const ref=db.collection(COL).doc('_conntest');
+    await ref.get({source:'server'});          // real server round-trip: rejects if blocked/offline
+    await ref.set({at:Date.now()},{merge:true});// confirm writes are allowed too
+    hide(b);                                    // everything works — no banner
+  }catch(e){
+    const code=(e&&e.code)||(e&&e.message)||'error';
+    b.className='banner err';
+    if(code==='unavailable'){
+      b.innerHTML='<b>Couldn’t reach the teacher database</b> (<code>unavailable</code>). Check your internet connection and reload.';
+    }else{
+      b.innerHTML='<b>Connected to Firebase, but the database refused the request</b> (<code>'+esc(code)+'</code>). '+
+        'Fix this once in the Firebase console, then reload:<br>'+
+        '&nbsp;• <b>Build → Authentication → Sign-in method</b>: enable <b>Anonymous</b>.<br>'+
+        '&nbsp;• <b>Build → Firestore Database → Rules</b>: allow signed-in access — e.g. <code>allow read, write: if request.auth != null;</code> — then <b>Publish</b>.';
+    }
+    show(b);
+  }
+}
+
+/* ------------------ views ------------------ */
+function hideAll(){ ['loginCard','recordCard','resultsCard','teacherCard'].forEach(k=>hide($(k))); }
+function clearSessionWatchers(){
+  if(typeof sessUnsub!=='undefined' && sessUnsub){ try{ sessUnsub(); }catch(e){} sessUnsub=null; }
+  if(typeof tSessUnsub!=='undefined' && tSessUnsub){ try{ tSessUnsub(); }catch(e){} tSessUnsub=null; }
+  if(typeof tSessTick!=='undefined' && tSessTick){ clearInterval(tSessTick); tSessTick=null; }
+  if(typeof rosterTimer!=='undefined' && rosterTimer){ clearInterval(rosterTimer); rosterTimer=null; }
+}
+function viewLogin(){ clearSessionWatchers(); hideAll(); show($('loginCard')); hide($('whoami')); S=null; $('loginMsg').textContent=''; $('pw').value=''; }
+function viewStudent(){
+  hideAll(); show($('recordCard')); show($('resultsCard')); show($('whoami'));
+  $('whoName').textContent=S.sn; $('whoTeacher').textContent=' · '+CLASSMETA[S.cls];
+  $('logoutBtn').textContent='Sign out';
+  $('resultsTitle').textContent='Your evaluations';
+  fillUnits(S.cls); setPrompt(S.cls); renderPhrases(); showMyResults();
+  watchSession(S.cls);
+}
+function previewStudent(cls){
+  S={ id:'preview_'+cls, cls, sn:'PREVIEW', doc:{cls, sn:'PREVIEW', evals:[]}, preview:true };
+  hideAll(); show($('recordCard')); show($('resultsCard')); show($('whoami'));
+  $('whoName').textContent='Preview'; $('whoTeacher').textContent=' · '+CLASSMETA[cls]+' — nothing is saved';
+  $('logoutBtn').textContent='‹ Back to dashboard';
+  $('resultsTitle').textContent='Preview evaluations (this session only)';
+  fillUnits(cls); setPrompt(cls); renderPhrases(); showMyResults();
+}
+
+/* ------------------ login ------------------ */
+function fillClasses(){ $('loginCls').innerHTML=Object.keys(CLASSMETA).map(c=>`<option value="${c}">${CLASSMETA[c]}</option>`).join(''); }
+function fillStudents(){ const cls=$('loginCls').value; $('sid').innerHTML=(ROSTERS[cls]||[]).map(s=>`<option value="${s}">${s}</option>`).join(''); }
+async function doLogin(){
+  const cls=$('loginCls').value, sn=($('sid').value||'').trim().toUpperCase(), pw=$('pw').value, m=$('loginMsg');
+  m.className='msgline';
+  if(!sn||!pw){ m.classList.add('err'); m.textContent='Choose your Student ID and enter a password.'; return; }
+  if(!(ROSTERS[cls]||[]).includes(sn)){ m.classList.add('err'); m.textContent='That Student ID is not on the roster for this class.'; return; }
+  m.textContent='Checking…';
+  const id=cls+'_'+sn; let doc=null; try{ doc=await loadDoc(id); }catch(e){ m.classList.add('err'); m.textContent='Connection problem — please try again.'; return; }
+  const h=await hash(pw);
+  if(!doc || !doc.pwHash){ doc=doc||{cls,sn,evals:[]}; doc.cls=cls; doc.sn=sn; if(!doc.evals)doc.evals=[]; doc.pwHash=h; doc.createdAt=doc.createdAt||Date.now(); await saveDoc(id,doc); }
+  else if(doc.pwHash!==h){ m.classList.add('err'); m.textContent='Incorrect password. If you forgot it, ask your teacher to reset it.'; return; }
+  if(!doc.evals) doc.evals=[];
+  S={id,cls,sn,doc};
+  try{ localStorage.setItem('gidisc_last', cls+'|'+sn); }catch(e){}
+  viewStudent();
+}
+function logout(){ if(S && S.preview){ const c=S.cls; S=null; renderTeacher(c); return; } viewLogin(); }
+
+// Populate the topic dropdown for a given class (textbook units, or Fri 5 bank).
+function fillUnits(cls){
+  const sel=$('unit'); if(!sel) return;
+  sel.innerHTML='';
+  unitsForClass(cls).forEach(u=>{ const o=document.createElement('option'); o.value=u; o.textContent=unitLabel(u); sel.appendChild(o); });
+}
+function renderPhrases(){
+  const u = $('unit').value || unitsForClass(S?S.cls:'wed2')[0];
+  const d = UNITS[u];
+  if(!d){ $('phrasebox').innerHTML=''; return; }
+  let html = `<div class="goal">GOAL: Learn how to ${d.goal.toLowerCase()}</div>`;
+  html += `<h3>Useful phrases — ${unitLabel(u)}</h3>`;
+  for(const g in d.groups){
+    html += `<div class="cat">${g}</div><ul>`;
+    d.groups[g].forEach(p=> html += `<li>${p}</li>`);
+    html += `</ul>`;
+  }
+  $('phrasebox').innerHTML = html;
+}
+
+/* ---- own-opinion detection: words the student added beyond the fixed phrases ---- */
+function _lowNorm(t){ return " " + String(t||"").toLowerCase().replace(/[’']/g,"'").replace(/[.,!?;:"“”]/g,' ').replace(/\s+/g,' ') + " "; }
+function ownWordCount(text, unit){
+  let low = _lowNorm(text);
+  stems(unit).forEach(o=>{ if(o.stem){ const re=new RegExp(o.stem.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'),'g'); low=low.replace(re,' '); } });
+  low = low.replace(/\s+/g,' ').trim();
+  return low ? low.split(' ').filter(Boolean).length : 0;
+}
+
+/* ---- Grammatical accuracy (0–6), automated estimate ----
+   NOTE: the browser speech recognizer tends to tidy grammar as it transcribes,
+   so this is a rough proxy, not a true grammar grade. It rewards complete,
+   varied sentences and penalises a few common spoken-English error patterns.
+   The teacher can always adjust the grammar sub-score in the Sheet. */
+function grammarScore(text){
+  const raw = String(text||'').trim();
+  if(!raw) return 0;
+  const words = raw.split(/\s+/).filter(Boolean);
+  const wc = words.length;
+  if(wc < 8) return 1;
+
+  const low = ' ' + raw.toLowerCase().replace(/[’']/g,"'").replace(/[.,!?;:"“”]/g,' ').replace(/\s+/g,' ') + ' ';
+
+  // crude sentence segmentation (recognizer rarely gives punctuation, so also
+  // split on common clause starters as a fallback)
+  let sentences = raw.split(/[.!?]+/).map(s=>s.trim()).filter(Boolean);
+  if(sentences.length <= 1){
+    sentences = raw.split(/\b(?=because|but|and then|so |however|although|when )/i).map(s=>s.trim()).filter(Boolean);
+  }
+  const avgLen = wc / Math.max(1, sentences.length);
+
+  // EARN the score up from a low base, so a short, simple answer with no
+  // detectable errors can no longer collect a free 6. Range and length have to
+  // be demonstrated before high marks are possible.
+  let score = 2;                                   // base
+  if(wc >= 25) score += 1;                          // enough speech to judge
+  if(wc >= 45) score += 1;                          // sustained
+  if(sentences.length >= 3) score += 1;             // more than one or two clauses
+  // complexity: using subordinating/linking words shows real sentence-building
+  const complexity = (/ (because|although|however|so that|even though|while|whereas|therefore|if |when |which |who ) /.test(low));
+  if(complexity) score += 1;
+  // reasonable B1 sentence length (not all tiny fragments, not one giant run-on)
+  if(avgLen >= 6 && avgLen <= 22 && sentences.length >= 2) score += 1;
+  // penalties for structural problems
+  if(sentences.length === 1 && wc > 40) score -= 1;             // one long run-on
+  const frag = sentences.filter(s=>s.split(/\s+/).filter(Boolean).length < 3).length;
+  if(sentences.length >= 4 && frag/sentences.length > 0.5) score -= 1; // very choppy
+  if(avgLen < 4) score -= 1;                                     // mostly fragments
+
+  // common spoken-English error patterns (each distinct hit deducts, capped)
+  const patterns = [
+    // subject–verb agreement
+    / i (is|are|was|has) /,
+    / (he|she|it) (are|were|have|do|don't) /,
+    / (we|they|you) (is|was|has|does|doesn't) /,
+    / (people|students|children|men|women) (is|was|has) /,
+    / (there is) (many|a lot of|lots of|some|two|three|four|five|several) (people|things|students|countries|animals|phones|reasons|problems)/,
+    / (there are) (a|an|one) /,            // there are a …
+    // articles
+    / (^| )a (apple|idea|hour|opinion|important|other|energy|animal|example|umbrella|honest|elephant|issue|economy)/,
+    / (^| )an (car|dog|house|book|student|person|table|country|phone|reason|problem)/, // an + consonant
+    // countability
+    / (much) (people|things|students|countries|animals|phones|reasons|problems|ideas)/,
+    / (many) (money|information|water|advice|homework|time|research|traffic)/,
+    // modals / infinitives + base form
+    / (can|could|should|would|will|must|may|might) (to )?([a-z]+ed|[a-z]+s) /, // should goes / can to go
+    / (to) (goes|went|going|does|did|has|is|are) /,   // to goes / to went
+    // negation + tense
+    / (don't|doesn't|didn't) (has|is|are|was|were) /,
+    / (didn't|don't|doesn't) ([a-z]+ed) /,            // didn't went / doesn't worked
+    / (is|are|was|were) (go|come|do|make|take|eat|say) (?!ing)/, // is go … (missing -ing/to)
+    // comparatives / double marking
+    / (more|very) (better|worse|cheaper|easier|bigger|smaller|faster|slower|higher|lower) /,
+    / (more) ([a-z]+er) /,                            // more cheaper
+    // prepositions (very common L2 slips)
+    / (depend|depends) (?!on)/,                        // depend of / depend _
+    / (discuss|discussed) about /,                     // discuss about
+    / (married|marry) with /,                          // married with
+    / (good|bad) in (english|math|sports|science)/,    // good in (→ at)
+    // plural/singular after quantifier
+    / (one of) (the )?([a-z]+[^s] )/                   // one of the student (rough)
+  ];
+  let errs = 0;
+  patterns.forEach(re=>{ if(re.test(low)) errs++; });
+  score -= Math.min(4, errs);     // deduct for detected error patterns
+
+  // Hard caps by how much was actually said — mirrors the pronunciation logic,
+  // so a one- or two-line answer can't reach a top grammar score just because
+  // there was too little text for any error to show up.
+  if(wc < 12)      score = Math.min(score, 2);
+  else if(wc < 20) score = Math.min(score, 3);
+  else if(wc < 30) score = Math.min(score, 4);
+  else if(wc < 45) score = Math.min(score, 5);
+
+  return Math.max(1, Math.min(6, Math.round(score)));
+}
+
+/* ------------------ synced session: student side ------------------ */
+let sessUnsub=null;         // active onSnapshot unsubscribe
+let sessReady=false;        // this student tapped "Ready" (mic unlocked)
+let sessHandledRound=null;  // round id we've already auto-started for
+
+// Called when entering the student record screen.
+function watchSession(cls){
+  if(sessUnsub){ try{ sessUnsub(); }catch(e){} sessUnsub=null; }
+  sessReady=false; sessHandledRound=null;
+  const box=$('sessionBox'); if(box){ hide(box); box.className='sessionbox hidden'; }
+  sessUnsub = subscribeSession(cls, s=>renderSession(cls,s));
+}
+
+// Lock the student's Unit/activity to the teacher's choice: select it, hide the
+// dropdown, show a read-only label, and render its phrases.
+function lockUnit(u){
+  const sel=$('unit'); if(!sel) return;
+  if(u && UNITS[u]){ sel.value=u; }
+  sel.classList.add('hidden');
+  let lab=$('unitLocked');
+  if(!lab){ lab=document.createElement('div'); lab.id='unitLocked'; lab.className='lockedunit'; sel.parentNode.insertBefore(lab, sel); }
+  lab.innerHTML = '<span class="lockicon">🔒</span> '+esc(unitLabel(sel.value));
+  show(lab);
+  renderPhrases();
+}
+function unlockUnit(){
+  const sel=$('unit'); if(!sel) return;
+  sel.classList.remove('hidden');
+  const lab=$('unitLocked'); if(lab) hide(lab);
+}
+
+function renderSession(cls,s){
+  const box=$('sessionBox'); if(!box) return;
+  // No active session → teacher pressed Stop (or none running).
+  if(!s || !s.active){
+    // If this student is mid-recording from the group round, stop it now so
+    // the teacher's Stop propagates to everyone. finishRec() will score+submit.
+    if(sessionRec && recog){ try{ recog.stop(); }catch(e){} }
+    sessHandledRound=null;
+    hide(box); box.className='sessionbox hidden'; unlockUnit(); return;
+  }
+  show(box);
+  // Teacher has chosen the Unit/activity → lock it for students.
+  if(s.unit) lockUnit(s.unit);
+  const now=Date.now();
+  const endAt=(s.startAt||0)+((s.length||300)*1000);
+  const live = s.startAt && now < endAt;
+  const remaining = live ? Math.max(1, Math.round((endAt-now)/1000)) : 0;
+
+  if(!live && s.startAt && now>=endAt){
+    // session finished
+    box.className='sessionbox'; box.innerHTML='The group session has ended. You can still record on your own below.';
+    unlockUnit();
+    return;
+  }
+
+  if(!sessReady){
+    // show Ready button (one tap → unlock mic, mark ready)
+    box.className='sessionbox armed';
+    box.innerHTML = (live
+        ? 'A group recording is <b>in progress</b>. Tap to join now — you’ll record for the time remaining.'
+        : 'Your teacher will start a group recording soon.')
+      + '<div style="margin-top:8px"><button id="readyBtn">'+(live?'Join now':'I’m ready')+'</button>'
+      + ' <span class="hint" id="readyMsg" style="margin:0"></span></div>';
+    $('readyBtn').onclick = ()=>armReady(cls);
+    return;
+  }
+
+  // student is ready
+  if(live){
+    box.className='sessionbox live';
+    box.innerHTML='<b>Recording in progress</b> — speak now. It will stop automatically.';
+    // auto-start once per round
+    if(sessHandledRound!==s.round && !recog){
+      sessHandledRound=s.round;
+      // ensure an activity is selected
+      if(!$('unit').value && $('unit').options.length) $('unit').selectedIndex=0;
+      startRec(remaining);
+    }
+  }else{
+    box.className='sessionbox armed';
+    box.innerHTML='<b>Ready.</b> Waiting for your teacher to start…';
+  }
+}
+
+// One tap: request mic permission (satisfies browser gesture rule), mark ready.
+async function armReady(cls){
+  const msg=$('readyMsg');
+  try{
+    if(navigator.mediaDevices && navigator.mediaDevices.getUserMedia){
+      const stream=await navigator.mediaDevices.getUserMedia({audio:true});
+      stream.getTracks().forEach(t=>t.stop()); // release immediately; we just needed permission
+    }
+    sessReady=true;
+    if(msg) msg.textContent='';
+    // re-render with latest session state
+    try{ renderSession(cls, await readSession(cls)); }catch(e){}
+  }catch(e){
+    if(msg){ msg.className='hint'; msg.textContent='Please allow microphone access to join.'; }
+  }
+}
+
+/* ------------------ recording + scoring ------------------ */
+let recog=null, finalText="", results=null;
+
+/* ---- countdown timer ---- */
+let timerInt=null, timerLeft=0;
+function fmtTime(s){ s=Math.max(0,s|0); const m=Math.floor(s/60); const ss=s%60; return m+':'+(ss<10?'0':'')+ss; }
+function resetTimerDisplay(){
+  const sel=$('timerLen'); const secs=sel?parseInt(sel.value,10):300;
+  timerLeft=secs; const t=$('timer'); if(t){ t.textContent=fmtTime(secs); t.classList.remove('low'); }
+}
+function startTimer(overrideSecs){
+  const sel=$('timerLen'); if(sel) sel.disabled=true;
+  const secs=(overrideSecs!=null?overrideSecs:(sel?parseInt(sel.value,10):300)); timerLeft=secs;
+  const t=$('timer'); if(t){ t.textContent=fmtTime(timerLeft); t.classList.remove('low'); }
+  runTimer();
+}
+// Start/resume the countdown ticking from the current timerLeft.
+function runTimer(){
+  const t=$('timer');
+  if(timerInt) clearInterval(timerInt);
+  timerInt=setInterval(()=>{
+    timerLeft--;
+    if(t){ t.textContent=fmtTime(timerLeft); if(timerLeft<=30) t.classList.add('low'); }
+    if(timerLeft<=0){ clearInterval(timerInt); timerInt=null; stopRec(); } // auto-stop at zero
+  },1000);
+}
+function pauseTimer(){ if(timerInt){ clearInterval(timerInt); timerInt=null; } } // freeze; keep timerLeft
+function stopTimer(){ if(timerInt){ clearInterval(timerInt); timerInt=null; } const sel=$('timerLen'); if(sel) sel.disabled=false; }
+
+/* ---- live sound meter (own mic stream via Web Audio; independent of speech
+   recognition, so it never affects scoring or the transcript) ---- */
+let meterCtx=null, meterStream=null, meterRAF=null, meterQuietMs=0, meterLastTs=0;
+async function startMeter(){
+  try{
+    meterStream = await navigator.mediaDevices.getUserMedia({audio:true});
+    const AC = window.AudioContext || window.webkitAudioContext;
+    meterCtx = new AC();
+    const src = meterCtx.createMediaStreamSource(meterStream);
+    const analyser = meterCtx.createAnalyser();
+    analyser.fftSize = 1024; analyser.smoothingTimeConstant = 0.6;
+    src.connect(analyser);
+    const buf = new Uint8Array(analyser.fftSize);
+    const wrap=$('meterWrap'), fill=$('meterFill'), hint=$('meterHint');
+    if(wrap) show(wrap);
+    meterQuietMs=0; meterLastTs=performance.now();
+    const tick=()=>{
+      analyser.getByteTimeDomainData(buf);
+      // RMS → rough loudness 0..1
+      let sum=0; for(let i=0;i<buf.length;i++){ const v=(buf[i]-128)/128; sum+=v*v; }
+      const rms = Math.sqrt(sum/buf.length);
+      const level = Math.min(1, rms*3.2);          // scale so normal speech fills most of the bar
+      const pct = Math.round(level*100);
+      if(fill){
+        fill.style.width = pct+'%';
+        fill.classList.toggle('low', level<0.12);
+        fill.classList.toggle('loud', level>0.92);
+      }
+      // "too quiet" nudge — only after ~1.2s of continuous low level, so it
+      // doesn't flicker during natural pauses between sentences.
+      const now=performance.now(), dt=now-meterLastTs; meterLastTs=now;
+      if(level<0.10){ meterQuietMs+=dt; } else { meterQuietMs=0; }
+      if(hint){
+        if(level>0.92){ hint.textContent='A little too loud'; hint.className='meterhint warn'; }
+        else if(meterQuietMs>1200){ hint.textContent='🔉 Speak a little louder'; hint.className='meterhint warn'; }
+        else { hint.innerHTML='&nbsp;'; hint.className='meterhint'; }
+      }
+      meterRAF = requestAnimationFrame(tick);
+    };
+    meterRAF = requestAnimationFrame(tick);
+  }catch(e){ /* mic not available for metering — fail silently, recording still works */ }
+}
+function stopMeter(){
+  if(meterRAF){ cancelAnimationFrame(meterRAF); meterRAF=null; }
+  if(meterStream){ try{ meterStream.getTracks().forEach(t=>t.stop()); }catch(e){} meterStream=null; }
+  if(meterCtx){ try{ meterCtx.close(); }catch(e){} meterCtx=null; }
+  const wrap=$('meterWrap'), fill=$('meterFill'), hint=$('meterHint');
+  if(fill){ fill.style.width='0%'; fill.className='meterfill'; }
+  if(hint){ hint.innerHTML='&nbsp;'; hint.className='meterhint'; }
+  if(wrap) hide(wrap);
+}
+
+/* ---- Mic check: run the meter for ~5s only. No recognition, no timer,
+   no scoring, nothing saved — just lets students confirm their mic works. ---- */
+let micCheckTimer=null, micChecking=false;
+async function micCheck(){
+  if(recog){ return; }                 // don't interfere with a real recording
+  const btn=$('micCheckBtn');
+  if(micChecking){ endMicCheck(); return; }   // second tap = stop early
+  micChecking=true;
+  if(btn){ btn.textContent='Checking… (speak now)'; }
+  $('recLive').innerHTML='<span class="dot"></span>Mic check — say a few words. This isn’t recorded.';
+  await startMeter();                  // opens its own mic stream; closes on endMicCheck
+  micCheckTimer=setTimeout(endMicCheck, 5000);
+}
+function endMicCheck(){
+  if(micCheckTimer){ clearTimeout(micCheckTimer); micCheckTimer=null; }
+  micChecking=false;
+  stopMeter();
+  const btn=$('micCheckBtn'); if(btn) btn.textContent='🎧 Mic check';
+  $('recLive').innerHTML='Mic check done. If the bar moved when you spoke, your mic is working.';
+}
+
+let sessionRec=false; // true when the current recording was started by a group session
+let paused=false;     // true while an individual recording is paused
+let confSum=0, confN=0; // pronunciation-confidence accumulators (kept across pause/resume)
+
+// Build a speech recognizer that appends to the shared finalText. Used for both
+// the initial start and each resume after a pause.
+function buildRecognizer(){
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  const r = new SR();
+  r.lang='en-US'; r.continuous=true; r.interimResults=true;
+  r.onresult = e=>{
+    let interim="";
+    for(let i=e.resultIndex;i<e.results.length;i++){
+      const res=e.results[i];
+      if(res.isFinal){
+        finalText += res[0].transcript+" ";
+        if(typeof res[0].confidence==='number' && res[0].confidence>0){confSum+=res[0].confidence;confN++;}
+      }else{ interim += res[0].transcript; }
+    }
+    $('transcript').textContent = (finalText+interim).trim() || "Listening…";
+  };
+  r.onerror = e=>{ $('recLive').textContent = "Mic error: "+e.error; };
+  r.onend = ()=>{
+    if(paused) return;           // paused → don't finalize/score; wait for Resume
+    r._avgConf = confN? (confSum/confN) : null;
+    finishRec(r._avgConf);
+  };
+  return r;
+}
+
+function startRec(overrideSecs){
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if(!SR){ show($('speechWarn')); return; }
+  if(micChecking){ endMicCheck(); }      // don't let a mic check collide with recording
+  sessionRec = (typeof overrideSecs==='number');
+  paused=false; finalText=""; results=null; confSum=0; confN=0;
+  $('transcript').textContent="";
+  hide($('resultBlock'));
+  recog = buildRecognizer();
+  recog.start();
+  startMeter();
+  startTimer(typeof overrideSecs==='number'?overrideSecs:null);
+  $('recBtn').classList.add('hidden');
+  hide($('micCheckBtn'));
+  show($('stopBtn'));
+  // Pause is only for individual recordings, never during a synced group session.
+  if(!sessionRec){ const pb=$('pauseBtn'); if(pb){ pb.textContent='Pause'; show(pb); } }
+  $('recLive').innerHTML = '<span class="dot"></span>Recording — speak your discussion. Recording stops automatically when the timer reaches 0:00, or press Stop.';
+}
+
+function pauseRec(){
+  if(!recog || sessionRec) return;        // not during group sessions
+  if(!paused){
+    paused=true; pauseTimer(); stopMeter();
+    try{ recog.stop(); }catch(e){}         // onend sees paused=true → no scoring
+    const pb=$('pauseBtn'); if(pb) pb.textContent='Resume';
+    $('recLive').innerHTML='Paused — your time is on hold. Press Resume to continue.';
+  }else{
+    paused=false;
+    recog = buildRecognizer();             // fresh recognizer; keeps existing finalText
+    try{ recog.start(); }catch(e){}
+    startMeter();
+    runTimer();                            // resume countdown from where it stopped
+    const pb=$('pauseBtn'); if(pb) pb.textContent='Pause';
+    $('recLive').innerHTML='<span class="dot"></span>Recording — press Pause to hold your time, or Stop to finish.';
+  }
+}
+
+function stopRec(){ paused=false; if(recog) recog.stop(); }
+
+function finishRec(avgConf){
+  stopTimer(); resetTimerDisplay(); stopMeter();
+  paused=false;
+  hide($('stopBtn')); hide($('pauseBtn')); show($('micCheckBtn'));
+  show($('recBtn'));
+  $('recBtn').textContent = "● Record again";
+  $('recLive').textContent = "";
+  const text = finalText.trim();
+  if(!text){ $('transcript').textContent = "No speech was captured. Try again in a quiet room."; return; }
+  score(text, avgConf);
+}
+
+function score(text, avgConf){
+  const u = $('unit').value;
+  const low = " "+text.toLowerCase()
+    .replace(/[’']/g,"'")
+    .replace(/[.,!?;:"“”]/g,' ')
+    .replace(/\s+/g,' ')+" ";
+
+  // ---- Phrase use (0–5): how many of the unit's phrase types appear ----
+  const st = stems(u);
+  const found = [];
+  st.forEach(o=>{
+    // match on the distinctive stem; allow it anywhere in the transcript
+    if(o.stem && low.indexOf(" "+o.stem+" ")>=0 || low.indexOf(" "+o.stem)>=0){
+      found.push(o.label);
+    }
+  });
+  const uniqueFound = [...new Set(found)];
+  // ---- OWN-OPINION GATE: reciting the phrases alone earns no score ----
+  const _totalW = text.trim().split(/\s+/).filter(Boolean).length;
+  const _ownW = ownWordCount(text, u);
+  const _ownRatio = _totalW ? _ownW/_totalW : 0;
+  if(!(_ownW >= 8 && _ownRatio >= 0.30)){
+    results = null;
+    $('pScore').innerHTML = '—<small>/7</small>';
+    $('hScore').innerHTML = '—<small>/7</small>';
+    $('gScore').innerHTML = '—<small>/6</small>';
+    $('tScore').innerHTML = '—<small>/20</small>';
+    $('foundPhrases').innerHTML = '<b>No score yet.</b> You need to give your own <b>opinions and reasons</b> — not just the discussion phrases. Speak your opinion <b>between</b> the phrases (for example, after “I strongly believe that …”, say <i>why</i>), then record again.';
+    $('submitBtn').disabled = true;
+    $('submitMsg').textContent = '';
+    show($('resultBlock'));
+    sessionRec=false;
+    return;
+  }
+  // Phrase use /7: full marks for 4+ distinct target phrases, scaled below that
+  // Full 7/7 only at 5+ distinct target phrases; linear below (1≈1,2≈3,3≈4,4≈6,5+=7).
+  const phraseScore = Math.min(7, Math.round((uniqueFound.length/5)*7));
+
+  // ---- Pronunciation (0–7), automated estimate ----
+  // Web Speech reports a recognition-confidence per final phrase: higher
+  // confidence means the recognizer understood the speech clearly, which
+  // correlates with intelligible pronunciation. A raw confidence score is
+  // jumpy and can be gamed by a single clear word, so we make it steadier:
+  //  - require a minimum amount of speech before high marks are possible
+  //    (one crisp word shouldn't earn 7/7),
+  //  - blend the whole-recording average confidence with a speech-quantity
+  //    factor, so the score reflects sustained intelligible talking.
+  // This is a stability/fairness improvement, not true phoneme assessment.
+  const wordCount = text.split(/\s+/).filter(Boolean).length;
+  // speech-quantity factor: ramps 0→1 as the student produces ~40+ words
+  const qty = Math.max(0, Math.min(1, wordCount/40));
+  let pron;
+  if(avgConf!=null){
+    // blend: 75% recognizer confidence, 25% how much was said; then gate by qty
+    const blended = (avgConf*0.75) + (qty*0.25);
+    let raw = blended*7;
+    // cap the score when very little was captured, so flukes can't score high
+    if(wordCount < 8)  raw = Math.min(raw, 2);
+    else if(wordCount < 15) raw = Math.min(raw, 4);
+    else if(wordCount < 25) raw = Math.min(raw, 6);
+    pron = Math.max(1, Math.min(7, Math.round(raw)));
+  }else{
+    // fallback when confidence isn't reported: fluency proxy by words captured
+    pron = wordCount>=55?7 : wordCount>=40?6 : wordCount>=28?5 : wordCount>=16?3 : wordCount>=8?2 : 1;
+  }
+
+  // ---- Grammatical accuracy /6 (automated estimate) ----
+  const grammar = grammarScore(text);
+
+  results = {
+    unit:u, unitTitle:UNITS[u].title,
+    pronunciation:pron, phrase:phraseScore, grammar:grammar,
+    total:pron+phraseScore+grammar,
+    phrasesUsed:uniqueFound, transcript:text
+  };
+
+  $('pScore').innerHTML = pron+'<small>/7</small>';
+  $('hScore').innerHTML = phraseScore+'<small>/7</small>';
+  $('gScore').innerHTML = grammar+'<small>/6</small>';
+  $('tScore').innerHTML = (pron+phraseScore+grammar)+'<small>/20</small>';
+  $('foundPhrases').innerHTML = uniqueFound.length
+    ? "Target phrases detected: " + uniqueFound.map(p=>`<span class="chip">${p}</span>`).join("")
+    : "No target phrases detected yet — try using the phrases from the box above.";
+  $('submitMsg').textContent = "";
+  $('submitBtn').disabled = false;
+  show($('resultBlock'));
+  // In a teacher-started group round, submit automatically so the student
+  // doesn't have to press Submit. (Only if a valid score was produced.)
+  if(sessionRec && results){ sessionRec=false; submit(); }
+}
+
+/* ------------------ submit + my results ------------------ */
+async function submit(){
+  if(!results || !S) return;
+  const trial = ((S.doc && S.doc.evals ? S.doc.evals.length : 0) + 1); // 1st, 2nd, 3rd…
+  const ev={ ts:Date.now(), trial:trial, unit:results.unit, unitTitle:results.unitTitle,
+             pron:results.pronunciation, phrase:results.phrase, grammar:results.grammar, total:results.total,
+             phrases:results.phrasesUsed, transcript:results.transcript };
+  if(S.preview){ S.doc.evals.push(ev); $('submitBtn').disabled=true; $('submitMsg').textContent='Preview — not saved.'; showMyResults(); return; }
+  $('submitBtn').disabled=true; $('submitMsg').textContent='Submitting…';
+  S.doc.evals.push(ev);
+  try{ await saveDoc(S.id,S.doc); $('submitMsg').textContent='Submitted ✓'; showMyResults(); mirrorToSheet(ev); }
+  catch(err){ S.doc.evals.pop(); $('submitBtn').disabled=false; $('submitMsg').textContent='Couldn’t submit — check your connection and try again.'; }
+}
+// Mirror one submitted evaluation to a Google Sheet (best-effort; never blocks
+// the student). Firebase remains the primary store; this is an extra copy.
+function mirrorToSheet(ev){
+  if(!SHEET_URL || !S || S.preview) return;
+  try{
+    fetch(SHEET_URL,{
+      method:'POST',
+      mode:'no-cors',
+      headers:{'Content-Type':'text/plain;charset=utf-8'},
+      body:JSON.stringify({
+        studentId:S.sn, class:(CLASSMETA[S.cls]||S.cls), trial:ev.trial,
+        unit:ev.unit, unitTitle:ev.unitTitle,
+        pronunciation:ev.pron, phrase:ev.phrase, grammar:ev.grammar, total:ev.total,
+        phrasesUsed:(ev.phrases||[]).join(' | '), transcript:ev.transcript
+      })
+    }).catch(()=>{});
+  }catch(e){}
+}
+async function refreshMy(){ if(!S) return; try{ const d=await loadDoc(S.id); if(d){ S.doc=d; if(!S.doc.evals)S.doc.evals=[]; } }catch(e){} showMyResults(); }
+function showMyResults(){
+  const body=$('resultsBody'); const evals=(S&&S.doc.evals)||[];
+  if(!evals.length){ body.innerHTML='<p class="empty">No evaluations yet. Record a discussion above and submit it.</p>'; return; }
+  const rows=evals.map((x,i)=>({x:x, trial:(x.trial!=null?x.trial:i+1)})).reverse().map(o=>`<tr>
+      <td class="num">${ordinal(o.trial)}</td>
+      <td>${new Date(o.x.ts).toLocaleString('en-GB')}</td>
+      <td>${esc(evUnitText(o.x.unit,o.x.unitTitle))}</td>
+      <td class="num">${o.x.pron}</td><td class="num">${o.x.phrase}</td><td class="num">${o.x.grammar!=null?o.x.grammar:'—'}</td><td class="num">${o.x.total}/20</td>
+    </tr>`).join('');
+  body.innerHTML=`<table><thead><tr><th>Trial</th><th>When</th><th>Unit</th><th>Pron.</th><th>Phrase</th><th>Gram.</th><th>Total</th></tr></thead><tbody>${rows}</tbody></table>`;
+}
+
+/* ------------------ teacher dashboard ------------------ */
+function teacherLogin(){
+  hideAll(); const c=$('teacherCard'); show(c); hide($('whoami'));
+  c.innerHTML=`<h2 style="margin:0 0 4px;font-size:20px">Teacher dashboard</h2>
+    <p class="hint">Enter the teacher password to view every student’s evaluations.</p>
+    <div class="row"><div><label for="tpw">Teacher password</label><input type="password" id="tpw"></div>
+      <div style="flex:0 0 auto;display:flex;align-items:flex-end"><button id="tgo">Open</button></div></div>
+    <p class="msgline" id="tmsg"></p>
+    <button class="ghost" id="tback">‹ Back to student login</button>`;
+  $('tgo').onclick=()=>{ if($('tpw').value!==TEACHER_PASSWORD){ const m=$('tmsg'); m.className='msgline err'; m.textContent='Incorrect password.'; return; } renderTeacher(Object.keys(CLASSMETA)[0]); };
+  $('tpw').addEventListener('keydown',e=>{ if(e.key==='Enter') $('tgo').click(); });
+  $('tback').onclick=viewLogin;
+}
+async function renderTeacher(cls){
+  hideAll(); const c=$('teacherCard'); show(c); show($('whoami')); $('whoName').textContent='Teacher'; $('whoTeacher').textContent=' · '+CLASSMETA[cls]; $('logoutBtn').textContent='Sign out';
+  c.innerHTML='<p class="empty">Loading…</p>';
+  let docs; try{ docs=await classDocs(cls); }
+  catch(e){ c.innerHTML=`<p class="empty">Couldn’t load class data. <button class="ghost" onclick="renderTeacher('${cls}')">Retry</button></p>`; return; }
+  const tabs=Object.keys(CLASSMETA).map(k=>`<button class="${k===cls?'':'secondary'}" onclick="renderTeacher('${k}')">${CLASSMETA[k]}</button>`).join(' ');
+  c.innerHTML=`<div style="display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:10px">
+      <h2 style="margin:0;font-size:20px">Teacher dashboard</h2>
+      <button class="ghost" onclick="viewLogin()">Sign out</button></div>
+    <div class="tabs">${tabs}</div>
+    <div style="margin:0 0 12px;display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+      <button class="ghost" onclick="previewStudent('${cls}')">▸ Preview as a student</button>
+      ${SHEET_URL?`<button class="ghost" onclick="exportClassToSheet('${cls}')">⬆ Export this class to Sheet</button><span class="hint" id="exportMsg" style="margin:0"></span>`:''}
+    </div>
+    <div class="subcard" id="sessionPanel" style="margin:0 0 14px">
+      <label>Group recording — start all ready ${CLASSMETA[cls]} students together</label>
+      <div class="row" style="align-items:flex-end">
+        <div style="flex:0 0 auto">
+          <span class="hint" style="display:block;margin:0 0 4px">${cls==='fri5'?'Activity':'Unit'}</span>
+          <select id="sessUnit" style="width:auto">
+            ${unitsForClass(cls).map(u=>`<option value="${u}">${esc(unitLabel(u))}</option>`).join('')}
+          </select>
+        </div>
+        <div style="flex:0 0 auto">
+          <span class="hint" style="display:block;margin:0 0 4px">Length</span>
+          <select id="sessLen" style="width:auto">
+            <option value="180">3 min</option><option value="300" selected>5 min</option>
+            <option value="420">7 min</option><option value="600">10 min</option>
+          </select>
+        </div>
+        <div style="flex:0 0 auto;display:flex;gap:8px;align-items:center">
+          <button id="sessStartBtn" onclick="teacherStartSession('${cls}')">▶ Start recording for ${CLASSMETA[cls]}</button>
+          <button id="sessStopBtn" class="secondary hidden" onclick="teacherStopSession('${cls}')">Stop</button>
+          <span class="timer" id="sessTimer" style="display:none"></span>
+        </div>
+      </div>
+      <p class="hint" id="sessMsg" style="margin:8px 0 0">Students tap “I’m ready” on their screen (to allow the microphone), then press Start here and everyone records together.</p>
+    </div>
+    <div id="rosterArea"></div>`;
+  renderRoster(cls, docs);
+  watchTeacherSession(cls);
+  startRosterAutoRefresh(cls);
+}
+
+// Build the roster summary + table for a class from its loaded docs.
+function renderRoster(cls, docs){
+  const area=$('rosterArea'); if(!area) return;
+  const byId={}; (docs||[]).forEach(d=>byId[d.sn]=d);
+  const signedIn=(docs||[]).length;
+  const rows=ROSTERS[cls].map(sn=>{
+    const d=byId[sn]; const ev=(d&&d.evals)||[]; const n=ev.length;
+    const latest=n?ev[n-1]:null; const best=n?Math.max.apply(null,ev.map(e=>e.total)):null;
+    return `<tr>
+      <td>${sn}${d?'':' <span class="empty">· no login yet</span>'}</td>
+      <td class="num">${n}</td>
+      <td>${latest?(esc(evUnitText(latest.unit,latest.unitTitle))+' · '+latest.total+'/20'):'—'}</td>
+      <td class="num">${best!=null?best+'/20':'—'}</td>
+      <td><button class="ghost" onclick="teacherStudent('${cls}','${sn}')">View</button></td></tr>`;
+  }).join('');
+  area.innerHTML=`<p class="hint">${CLASSMETA[cls]} · ${signedIn}/${ROSTERS[cls].length} students have signed in. “Evals” counts submitted evaluations; “Best” is the highest total /20. Tap <b>View</b> for a student’s evaluations, transcripts, and password controls. <span class="hint" id="rosterLive" style="color:var(--good)">· live</span></p>
+    <table><thead><tr><th>Student</th><th>Evals</th><th>Latest</th><th>Best</th><th></th></tr></thead><tbody>${rows}</tbody></table>`;
+}
+
+// Periodically re-fetch the class and update just the roster area, so sign-ins
+// and new evaluations appear without reloading. Stops if we leave the dashboard.
+let rosterTimer=null;
+function startRosterAutoRefresh(cls){
+  if(rosterTimer){ clearInterval(rosterTimer); rosterTimer=null; }
+  rosterTimer=setInterval(async()=>{
+    // only while the dashboard for this class is on screen
+    if(!$('rosterArea') || $('teacherCard').classList.contains('hidden')){ clearInterval(rosterTimer); rosterTimer=null; return; }
+    try{ const docs=await classDocs(cls); renderRoster(cls, docs); }catch(e){}
+  }, 10000); // every 10s
+}
+function stopRosterAutoRefresh(){ if(rosterTimer){ clearInterval(rosterTimer); rosterTimer=null; } }
+
+/* ---- synced session: teacher side ---- */
+let tSessUnsub=null, tSessTick=null;
+function watchTeacherSession(cls){
+  if(tSessUnsub){ try{ tSessUnsub(); }catch(e){} tSessUnsub=null; }
+  if(tSessTick){ clearInterval(tSessTick); tSessTick=null; }
+  tSessUnsub = subscribeSession(cls, s=>renderTeacherSession(cls,s));
+}
+function renderTeacherSession(cls,s){
+  const startBtn=$('sessStartBtn'), stopBtn=$('sessStopBtn'), tEl=$('sessTimer'), msg=$('sessMsg');
+  if(!startBtn) return; // dashboard not showing this panel
+  const now=Date.now();
+  const endAt=s&&s.active&&s.startAt?((s.startAt)+((s.length||300)*1000)):0;
+  const live = endAt && now<endAt;
+  if(tSessTick){ clearInterval(tSessTick); tSessTick=null; }
+  if(live){
+    startBtn.classList.add('hidden'); show(stopBtn); if(tEl) tEl.style.display='';
+    const upd=()=>{ const left=Math.max(0,Math.round((endAt-Date.now())/1000)); if(tEl){ tEl.textContent=fmtTime(left); tEl.classList.toggle('low',left<=30);} if(left<=0){ clearInterval(tSessTick); tSessTick=null; if(tEl) tEl.style.display='none'; startBtn.classList.remove('hidden'); hide(stopBtn); if(msg) msg.textContent='Session finished.'; } };
+    upd(); tSessTick=setInterval(upd,1000);
+    if(msg) msg.textContent='Recording in progress for '+CLASSMETA[cls]+' — ready students are recording now.';
+  }else{
+    startBtn.classList.remove('hidden'); hide(stopBtn); if(tEl) tEl.style.display='none';
+    if(msg && !/finished/.test(msg.textContent)) msg.textContent='Students tap “I’m ready” on their screen (to allow the microphone), then press Start here and everyone records together.';
+  }
+}
+async function teacherStartSession(cls){
+  const len=parseInt(($('sessLen')&&$('sessLen').value)||'300',10);
+  const unit=($('sessUnit')&&$('sessUnit').value)||unitsForClass(cls)[0];
+  const round=Date.now();
+  try{
+    await writeSession(cls,{ active:true, startAt:round, length:len, round:round, unit:unit });
+    const msg=$('sessMsg'); if(msg) msg.textContent='Started ✓ — ready students are now recording.';
+  }catch(e){ const msg=$('sessMsg'); if(msg){ msg.className='hint'; msg.textContent='Could not start the session. Check your connection and try again.'; } }
+}
+async function teacherStopSession(cls){
+  try{ await writeSession(cls,{ active:false, startAt:0, length:0, round:Date.now() }); }
+  catch(e){ const msg=$('sessMsg'); if(msg) msg.textContent='Could not stop the session.'; }
+}
+
+// One-time export: push every evaluation already in Firebase for this class to
+// the Google Sheet. Appends rows (no dedupe) — avoid tapping twice.
+async function exportClassToSheet(cls){
+  const msg=$('exportMsg');
+  if(!SHEET_URL){ if(msg) msg.textContent='No Sheet URL set.'; return; }
+  let docs=[]; try{ docs=await classDocs(cls); }catch(e){ if(msg){ msg.className='hint'; msg.textContent='Could not read class data.'; } return; }
+  // flatten to one record per evaluation
+  const recs=[];
+  docs.forEach(d=>{ (d.evals||[]).forEach((ev,i)=>{ recs.push({ sn:d.sn, ev:ev, trial:(ev.trial!=null?ev.trial:i+1) }); }); });
+  if(!recs.length){ if(msg) msg.textContent='Nothing to export for '+CLASSMETA[cls]+'.'; return; }
+  if(!confirm('Export '+recs.length+' evaluation(s) for '+CLASSMETA[cls]+' to the Google Sheet?\n\nThis appends rows and does not check for duplicates, so only run it once.')) return;
+  if(msg){ msg.className='hint'; msg.textContent='Exporting 0/'+recs.length+'…'; }
+  let sent=0;
+  for(const r of recs){
+    try{
+      await fetch(SHEET_URL,{
+        method:'POST', mode:'no-cors',
+        headers:{'Content-Type':'text/plain;charset=utf-8'},
+        body:JSON.stringify({
+          studentId:r.sn, class:(CLASSMETA[cls]||cls), trial:r.trial,
+          unit:r.ev.unit, unitTitle:r.ev.unitTitle,
+          pronunciation:r.ev.pron, phrase:r.ev.phrase,
+          grammar:(r.ev.grammar!=null?r.ev.grammar:''), total:r.ev.total,
+          phrasesUsed:(r.ev.phrases||[]).join(' | '), transcript:r.ev.transcript
+        })
+      });
+    }catch(e){}
+    sent++;
+    if(msg) msg.textContent='Exporting '+sent+'/'+recs.length+'…';
+    await new Promise(res=>setTimeout(res,250)); // gentle pacing for Apps Script
+  }
+  if(msg) msg.textContent='Done — sent '+sent+' row(s) to the Sheet. Check your Google Sheet.';
+}
+
+async function teacherStudent(cls,sn){
+  const c=$('teacherCard'); c.innerHTML='<p class="empty">Loading…</p>';
+  const id=cls+'_'+sn; let d=null; try{ d=await loadDoc(id); }catch(e){}
+  const ev=(d&&d.evals)||[];
+  const rows=ev.map((e,i)=>({e:e, trial:(e.trial!=null?e.trial:i+1)})).reverse().map(o=>`<tr class="trow">
+      <td class="num">${ordinal(o.trial)}</td>
+      <td>${new Date(o.e.ts).toLocaleString('en-GB')}</td>
+      <td>${esc(evUnitText(o.e.unit,o.e.unitTitle))}</td>
+      <td class="num">${o.e.pron}</td><td class="num">${o.e.phrase}</td><td class="num">${o.e.grammar!=null?o.e.grammar:'—'}</td><td class="num">${o.e.total}/20</td></tr>
+    <tr class="trow2"><td colspan="7">
+      <div class="hint" style="margin:0 0 4px">Target phrases: ${o.e.phrases&&o.e.phrases.length?o.e.phrases.map(esc).join(' · '):'—'}</div>
+      <details><summary>Transcript</summary><div class="transcript" style="margin-top:6px">${esc(o.e.transcript||'')}</div></details>
+    </td></tr>`).join('');
+  c.innerHTML=`<div style="display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:10px">
+      <h2 style="margin:0;font-size:20px">${esc(sn)}</h2>
+      <button class="ghost" onclick="renderTeacher('${cls}')">‹ Back to list</button></div>
+    <p class="hint">${CLASSMETA[cls]} · ${ev.length} evaluation(s)${d?'':' · no account yet'}</p>
+    ${ev.length?`<table><thead><tr><th>Trial</th><th>When</th><th>Unit</th><th>Pron.</th><th>Phrase</th><th>Gram.</th><th>Total</th></tr></thead><tbody>${rows}</tbody></table>`:'<p class="empty">No evaluations submitted yet.</p>'}
+    <div class="subcard">
+      <label>Set / edit password</label>
+      <div class="row"><div><input type="text" id="spw" placeholder="New password" autocomplete="off"></div>
+        <div style="flex:0 0 auto;display:flex;align-items:flex-end"><button onclick="teacherSetPw('${cls}','${sn}')">Set password</button></div></div>
+      <p class="msgline" id="spwm"></p>
+      <div style="margin-top:10px;display:flex;gap:10px;flex-wrap:wrap">
+        <button class="ghost" onclick="teacherResetPw('${cls}','${sn}')">Reset password (clear it)</button>
+        <button class="ghost" style="border-color:var(--danger);color:var(--danger)" onclick="teacherClearEvals('${cls}','${sn}')">Delete all evaluations</button>
+      </div>
+    </div>`;
+}
+async function teacherSetPw(cls,sn){
+  const v=$('spw').value, m=$('spwm'); m.className='msgline';
+  if(!v){ m.classList.add('err'); m.textContent='Enter a password to set.'; return; }
+  const id=cls+'_'+sn; let d=null; try{ d=await loadDoc(id); }catch(e){}
+  d=d||{cls,sn,evals:[],createdAt:Date.now()}; d.cls=cls; d.sn=sn; if(!d.evals)d.evals=[]; d.pwHash=await hash(v);
+  await saveDoc(id,d); m.classList.add('ok'); m.textContent='Password set for '+sn+'.'; $('spw').value='';
+}
+async function teacherResetPw(cls,sn){
+  if(!confirm('Reset the password for '+sn+'? They will set a new one on their next login.')) return;
+  const id=cls+'_'+sn; let d=null; try{ d=await loadDoc(id); }catch(e){}
+  if(d){ d.pwHash=null; await saveDoc(id,d); } teacherStudent(cls,sn);
+}
+async function teacherClearEvals(cls,sn){
+  if(!confirm('Delete ALL evaluations for '+sn+'? Their account and password are kept.')) return;
+  const id=cls+'_'+sn; let d=null; try{ d=await loadDoc(id); }catch(e){}
+  if(d){ d.evals=[]; await saveDoc(id,d); } teacherStudent(cls,sn);
+}
+
+/* ------------------ init ------------------ */
+window.addEventListener('DOMContentLoaded', ()=>{
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if(!SR) show($('speechWarn'));
+
+  fillUnits('wed2');
+  $('unit').addEventListener('change', renderPhrases);
+  renderPhrases();
+  resetTimerDisplay();
+  $('timerLen').addEventListener('change', ()=>{ if(!timerInt) resetTimerDisplay(); });
+
+  fillClasses(); fillStudents();
+  $('loginCls').addEventListener('change', fillStudents);
+  try{ const last=(localStorage.getItem('gidisc_last')||'').split('|'); if(last[0] && CLASSMETA[last[0]]){ $('loginCls').value=last[0]; fillStudents(); if((ROSTERS[last[0]]||[]).includes(last[1])) $('sid').value=last[1]; } }catch(e){}
+
+  $('loginBtn').addEventListener('click', doLogin);
+  $('sid').addEventListener('keydown', e=>{ if(e.key==='Enter') $('pw').focus(); });
+  $('pw').addEventListener('keydown', e=>{ if(e.key==='Enter') doLogin(); });
+  $('teacherLink').addEventListener('click', teacherLogin);
+  $('logoutBtn').addEventListener('click', logout);
+  $('micCheckBtn').addEventListener('click', micCheck);
+  $('recBtn').addEventListener('click', ()=>startRec());
+  $('pauseBtn').addEventListener('click', pauseRec);
+  $('stopBtn').addEventListener('click', stopRec);
+  $('submitBtn').addEventListener('click', submit);
+  $('refreshBtn').addEventListener('click', refreshMy);
+
+  initStore().then(setStatus);
+});
+</script>
+</body>
+</html>
