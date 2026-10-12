@@ -83,12 +83,22 @@
   .meterfill.loud{background:var(--danger)}
   .meterhint{font-family:ui-sans-serif,system-ui,sans-serif;font-size:13px;color:var(--muted);min-width:11em;text-align:left}
   .meterhint.warn{color:#8a6d1a;font-weight:600}
+  /* gentle blink on the Pause button while recording, to remind students they
+     can pause to think instead of letting silence waste their time */
+  @keyframes pauseblink{0%,100%{background:var(--amber);border-color:var(--amber);color:#fff}50%{background:#fff;border-color:var(--amber);color:var(--amber)}}
+  #pauseBtn.blink{animation:pauseblink 1.1s ease-in-out infinite}
+  @media (prefers-reduced-motion:reduce){#pauseBtn.blink{animation:none;background:var(--amber);border-color:var(--amber);color:#fff}}
   .timer{font-family:ui-sans-serif,system-ui,sans-serif;font-variant-numeric:tabular-nums;font-size:20px;font-weight:700;color:var(--ink);min-width:3.2em;text-align:center}
   .timer.low{color:var(--danger)}
   .sessionbox{margin-top:14px;padding:12px 14px;border-radius:8px;border:1px solid var(--line);font-family:ui-sans-serif,system-ui,sans-serif;font-size:14px}
   .sessionbox.armed{background:#fdf3e3;border-color:#eccf9a;color:#7a541a}
   .sessionbox.live{background:#e4efeb;border-color:#9fc3b8;color:#1c5848}
   .sessionbox b{font-weight:700}
+  /* loud "join now" banner + button when a group recording is already live */
+  .sessionbox.joinnow{background:#fbeaea;border:2px solid var(--danger);color:#7a2020}
+  @keyframes joinpulse{0%,100%{transform:scale(1)}50%{transform:scale(1.04)}}
+  .joinbtn{background:var(--danger);border-color:var(--danger);color:#fff;font-size:17px;padding:12px 20px;animation:joinpulse 1s ease-in-out infinite}
+  @media (prefers-reduced-motion:reduce){.joinbtn{animation:none}}
   .lockedunit{padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:var(--brand-soft);font-family:ui-sans-serif,system-ui,sans-serif;font-size:15px;font-weight:600;color:var(--ink)}
   .lockicon{opacity:.7}
   .transcript{background:#fff;border:1px dashed var(--line);border-radius:8px;padding:12px;min-height:70px;margin-top:12px;font-size:15px;white-space:pre-wrap}
@@ -258,12 +268,16 @@ const SHEET_URL = "https://script.google.com/macros/s/AKfycbwq0gxJhZcYSm8WjOKBUd
 /* ============================================================ */
 
 const ROSTERS = {"wed2": ["26410064", "26410087", "26410183", "26411080", "26411173", "26412033", "26412067", "26412100", "26412112", "26413057", "26413086", "26413145", "26414005", "26414192", "26415095", "26416030", "26416157", "26416203", "26417075", "26417083", "26418152", "26418171", "26418188", "26419048"], "fri1": ["25KS1143", "26KS1020", "26KS1022", "26KS1029", "26KS1037", "26KS1038", "26KS1041", "26KS1043", "26KS1050", "26KS1052", "26KS1062", "26KS1071", "26KS1074", "26KS1079", "26KS1081", "26KS1137", "26KS1145", "26KS1162", "26KS1192", "26KS1194", "26KS1215", "26KS1260"]};
-const CLASSMETA = {"wed2": "Wed 2", "fri1": "Fri 1", "fri5": "Fri 5"};
+const CLASSMETA = {"wed2": "Wed 2", "fri1": "Fri 1", "fri5": "Fri 5", "test": "Test"};
 ROSTERS["fri5"] = ["1W241093","1W242236","1W252069","1W252092","1W252103","1W252112","1W252116","1W252136","1W252183","1W252221","1W252234","1W252237","1Y23B065","1Y24F137","1Y25D031","1Y25D033","1Y25D051","1Y25D062","1Y25D075","1Y25D084","1Y25D096","1Y25D102","1Y25D104","1Y25D108","1Y25D111","1Y25D121","1Y25D128","1Y25D141"];
+// Sandbox class for the teacher to try the tool without affecting student records.
+// ID is uppercase because login uppercases the entered/selected ID.
+ROSTERS["test"] = ["TEACHER"];
 const ORDER = ["1","2","3","4","6","10","11","12","15"];
 // Which topics each class chooses from. Wed 2 & Fri 1 use the textbook units;
 // Fri 5 uses the discussion-skill phrase bank (F5-*).
-const ORDER_BY_CLASS = { wed2: ORDER, fri1: ORDER, fri5: ["F5-1","F5-2","F5-3"] };
+// Test class can pick from every topic (textbook units + Fri 5 activities).
+const ORDER_BY_CLASS = { wed2: ORDER, fri1: ORDER, fri5: ["F5-1","F5-2","F5-3"], test: ORDER.concat(["F5-1","F5-2","F5-3"]) };
 function unitsForClass(cls){ return ORDER_BY_CLASS[cls] || ORDER; }
 // Fri 5 topics aren't numbered "Units", so label them by title only.
 function unitLabel(u){ return /^F5-/.test(u) ? UNITS[u].title : ('Unit '+u+' — '+UNITS[u].title); }
@@ -749,11 +763,11 @@ function renderSession(cls,s){
 
   if(!sessReady){
     // show Ready button (one tap → unlock mic, mark ready)
-    box.className='sessionbox armed';
+    box.className = live ? 'sessionbox joinnow' : 'sessionbox armed';
     box.innerHTML = (live
-        ? 'A group recording is <b>in progress</b>. Tap to join now — you’ll record for the time remaining.'
+        ? '<b style="font-size:16px">⏺ A group recording is in progress!</b><br>Tap the button to join now — you’ll record for the time remaining.'
         : 'Your teacher will start a group recording soon.')
-      + '<div style="margin-top:8px"><button id="readyBtn">'+(live?'Join now':'I’m ready')+'</button>'
+      + '<div style="margin-top:10px"><button id="readyBtn"'+(live?' class="joinbtn"':'')+'>'+(live?'▶ Join the recording now':'I’m ready')+'</button>'
       + ' <span class="hint" id="readyMsg" style="margin:0"></span></div>';
     $('readyBtn').onclick = ()=>armReady(cls);
     return;
@@ -941,7 +955,7 @@ function startRec(overrideSecs){
   hide($('micCheckBtn'));
   show($('stopBtn'));
   // Pause is only for individual recordings, never during a synced group session.
-  if(!sessionRec){ const pb=$('pauseBtn'); if(pb){ pb.textContent='Pause'; show(pb); } }
+  if(!sessionRec){ const pb=$('pauseBtn'); if(pb){ pb.textContent='Pause'; pb.classList.add('blink'); show(pb); } }
   $('recLive').innerHTML = '<span class="dot"></span>Recording — speak your discussion. Recording stops automatically when the timer reaches 0:00, or press Stop.';
 }
 
@@ -950,7 +964,7 @@ function pauseRec(){
   if(!paused){
     paused=true; pauseTimer(); stopMeter();
     try{ recog.stop(); }catch(e){}         // onend sees paused=true → no scoring
-    const pb=$('pauseBtn'); if(pb) pb.textContent='Resume';
+    const pb=$('pauseBtn'); if(pb){ pb.textContent='Resume'; pb.classList.remove('blink'); }
     $('recLive').innerHTML='Paused — your time is on hold. Press Resume to continue.';
   }else{
     paused=false;
@@ -958,7 +972,7 @@ function pauseRec(){
     try{ recog.start(); }catch(e){}
     startMeter();
     runTimer();                            // resume countdown from where it stopped
-    const pb=$('pauseBtn'); if(pb) pb.textContent='Pause';
+    const pb=$('pauseBtn'); if(pb){ pb.textContent='Pause'; pb.classList.add('blink'); }
     $('recLive').innerHTML='<span class="dot"></span>Recording — press Pause to hold your time, or Stop to finish.';
   }
 }
@@ -968,7 +982,7 @@ function stopRec(){ paused=false; if(recog) recog.stop(); }
 function finishRec(avgConf){
   stopTimer(); resetTimerDisplay(); stopMeter();
   paused=false;
-  hide($('stopBtn')); hide($('pauseBtn')); show($('micCheckBtn'));
+  hide($('stopBtn')); const _pb=$('pauseBtn'); if(_pb) _pb.classList.remove('blink'); hide(_pb); show($('micCheckBtn'));
   show($('recBtn'));
   $('recBtn').textContent = "● Record again";
   $('recLive').textContent = "";
