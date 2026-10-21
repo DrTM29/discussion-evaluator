@@ -428,24 +428,83 @@ const UNITS = {
   }
 };
 
-function stems(unit){
-  const list = [];
-  for(const g in UNITS[unit].groups){
-    UNITS[unit].groups[g].forEach(p=>{
-      // Keep only the distinctive lead-in: everything before the first
-      // placeholder gap (…), so "I think that … because …" matches on
-      // "i think that" and won't require the exact filler words.
-      let s = p.toLowerCase()
-        .split(/…|\.\.\./)[0]
-        .replace(/[“”"?.!→]/g,' ')
-        .replace(/[’']/g,"'")
-        .replace(/\s+/g,' ')
-        .trim();
-      if(s.length>=3) list.push({label:p, stem:s});
-    });
-  }
-  return list;
+/* ---- Phrase matching (tolerant) ----
+   Normalize apostrophes away (curly AND straight) so "what's"→"whats" and
+   "I'm"→"im" are single tokens in both the phrase and the transcript — this was
+   the main reason matches were missed before. Each phrase becomes an ordered
+   sequence of its key words, matched allowing up to 2 filler words between them,
+   so natural speech ("I really strongly believe…") still counts. */
+// Expand common full forms to their contractions so "you are"/"you're",
+// "do not"/"don't" etc. all unify to one spelling in both phrase and transcript.
+const _CONTRACT=[
+ [/\byou are\b/g,"youre"],[/\bi am\b/g,"im"],[/\bthat is\b/g,"thats"],[/\bwhat is\b/g,"whats"],
+ [/\bdo not\b/g,"dont"],[/\bdoes not\b/g,"doesnt"],[/\bdid not\b/g,"didnt"],[/\bcan not\b/g,"cant"],[/\bcannot\b/g,"cant"],
+ [/\bit is\b/g,"its"],[/\bwe are\b/g,"were"],[/\bthey are\b/g,"theyre"],[/\bi would\b/g,"id"],[/\bi have\b/g,"ive"],
+ [/\bcould not\b/g,"couldnt"],[/\bwould not\b/g,"wouldnt"],[/\bshould not\b/g,"shouldnt"],[/\bis not\b/g,"isnt"],[/\bare not\b/g,"arent"]
+];
+function _normP(s){
+  let x=" " + String(s||"").toLowerCase()
+    .replace(/[’‘']/g,"")   // remove apostrophes (join letters)
+    .replace(/[^a-z0-9]+/g," ")
+    .replace(/\s+/g," ") + " ";
+  _CONTRACT.forEach(([re,r])=>{ x=x.replace(re,r); });
+  return x.replace(/\s+/g," ");
 }
+const _OPT_TAIL=/^(that|the|it|this)$/;
+const _FN=/^(i|you|we|they|it|a|an|the|to|of|in|on|for|is|are|do|but|so|what|that|my|your|please|about|here|now|well)$/;
+function _phraseKeyWords(p){
+  let src = String(p);
+  if(src.indexOf("→")>=0) src = src.split("→").pop();     // arrow notation: use the part after the arrow
+  let lead = src.split(/…|\.\.\./)[0];                     // text before first gap
+  let words = _normP(lead).trim().split(" ").filter(Boolean);
+  if(words.length < 2){                                    // gap-first phrase → use distinctive words of whole phrase
+    words = _normP(src).trim().split(" ").filter(Boolean)
+              .filter(w=>!/^(the|a|an|to|of|it|in|on|for)$/.test(w)).slice(0,4);
+  }
+  // a trailing bare function word is optional ("I think that" also matches "I think")
+  while(words.length > 2 && _OPT_TAIL.test(words[words.length-1])) words.pop();
+  // de-duplicate consecutive repeats (e.g. arrow phrases that echo themselves)
+  words = words.filter((w,i)=>i===0 || w!==words[i-1]);
+  // Long phrases are fragile if every word is required, since students vary the
+  // wording. Reduce to a distinctive CORE: the first few content words PLUS the
+  // final content word, so near-identical phrases (next topic vs next speaker,
+  // slower vs louder) stay distinguishable and don't credit each other.
+  if(words.length > 5){
+    const content=words.filter(w=>!_FN.test(w));
+    let core = content.length>=2 ? content.slice(0,3) : words.slice(0,3);
+    const last=content[content.length-1];
+    if(last && core.indexOf(last)<0) core.push(last);
+    words=core;
+  }
+  words=[...new Set(words)];                                // drop any duplicate key words
+  return words;
+}
+function _buildPhraseRe(words){
+  const esc=w=>w.replace(/[.*+?^${}()|[\]\\]/g,"\\$&");
+  const parts=words.map(esc);
+  let pat="(?:^| )"+parts[0];
+  for(let i=1;i<parts.length;i++){ pat+="(?: \\w+){0,3} "+parts[i]; }  // ≤3 filler words between keys
+  pat+="(?: |$)";
+  return new RegExp(pat);
+}
+let _matcherCache={};
+function phraseMatchers(unit){
+  if(_matcherCache[unit]) return _matcherCache[unit];
+  const out=[];
+  for(const g in UNITS[unit].groups){
+    UNITS[unit].groups[g].forEach(p=>{ const w=_phraseKeyWords(p); if(w.length) out.push({label:p, words:w, re:_buildPhraseRe(w)}); });
+  }
+  _matcherCache[unit]=out; return out;
+}
+// Returns the distinct target phrases (labels) detected in the transcript.
+function matchPhrases(unit, text){
+  const hay=_normP(text).trim();
+  const found=[];
+  phraseMatchers(unit).forEach(m=>{ if(m.re.test(hay)) found.push(m.label); });
+  return [...new Set(found)];
+}
+// Kept for the own-opinion gate: list of key-word sequences to strip out.
+function stems(unit){ return phraseMatchers(unit).map(m=>({label:m.label, stem:m.words.join(' ')})); }
 
 /* ---------- data layer: Firebase if configured, else localStorage ---------- */
 let useFB=false, db=null, ready=Promise.resolve(), initReason='';
@@ -630,10 +689,11 @@ function renderPhrases(){
 }
 
 /* ---- own-opinion detection: words the student added beyond the fixed phrases ---- */
-function _lowNorm(t){ return " " + String(t||"").toLowerCase().replace(/[’']/g,"'").replace(/[.,!?;:"“”]/g,' ').replace(/\s+/g,' ') + " "; }
 function ownWordCount(text, unit){
-  let low = _lowNorm(text);
-  stems(unit).forEach(o=>{ if(o.stem){ const re=new RegExp(o.stem.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'),'g'); low=low.replace(re,' '); } });
+  let low = _normP(text);
+  // remove the detected phrase sequences (and their key words) so only the
+  // student's own words remain, to check they spoke beyond the fixed phrases.
+  phraseMatchers(unit).forEach(m=>{ if(m.re.test(low)) low=low.replace(new RegExp(m.re.source,'g'),' '); });
   low = low.replace(/\s+/g,' ').trim();
   return low ? low.split(' ').filter(Boolean).length : 0;
 }
@@ -1019,16 +1079,8 @@ function score(text, avgConf){
     .replace(/[.,!?;:"“”]/g,' ')
     .replace(/\s+/g,' ')+" ";
 
-  // ---- Phrase use (0–5): how many of the unit's phrase types appear ----
-  const st = stems(u);
-  const found = [];
-  st.forEach(o=>{
-    // match on the distinctive stem; allow it anywhere in the transcript
-    if(o.stem && low.indexOf(" "+o.stem+" ")>=0 || low.indexOf(" "+o.stem)>=0){
-      found.push(o.label);
-    }
-  });
-  const uniqueFound = [...new Set(found)];
+  // ---- Phrase use: how many distinct target phrases appear (tolerant match) ----
+  const uniqueFound = matchPhrases(u, text);
   // ---- OWN-OPINION GATE: reciting the phrases alone earns no score ----
   const _totalW = text.trim().split(/\s+/).filter(Boolean).length;
   const _ownW = ownWordCount(text, u);
