@@ -72,6 +72,9 @@
   .phrasebox{background:var(--brand-soft);border:1px solid var(--line);border-radius:8px;padding:14px 16px;margin-top:14px}
   .phrasebox h3{margin:0 0 4px;font-size:16px}
   .goal{font-family:ui-sans-serif,system-ui,sans-serif;font-size:13px;color:var(--brand);font-weight:600;margin-bottom:10px}
+  .qbox{background:var(--brand);color:#fff;border-radius:8px;padding:12px 14px;margin:0 0 12px}
+  .qlabel{font-family:ui-sans-serif,system-ui,sans-serif;font-size:11px;letter-spacing:.08em;text-transform:uppercase;opacity:.85;margin-bottom:3px}
+  .qtext{font-size:16px;font-weight:600;line-height:1.35}
   .phrasebox ul{margin:8px 0 0;padding-left:18px}
   .phrasebox li{margin:3px 0;font-size:15px}
   .cat{font-family:ui-sans-serif,system-ui,sans-serif;font-size:12px;letter-spacing:.04em;color:var(--muted);margin-top:10px;font-weight:600}
@@ -198,9 +201,6 @@
 
     <div class="phrasebox" id="phrasebox"></div>
 
-    <!-- synced session banner (shown to students when a class session is armed/live) -->
-    <div id="sessionBox" class="sessionbox hidden"></div>
-
     <div style="margin-top:18px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
       <button id="recBtn">● Start recording</button>
       <button class="secondary" id="micCheckBtn">🎧 Mic check</button>
@@ -230,7 +230,8 @@
         <div class="score"><div class="n" id="pScore">0<small>/7</small></div><div class="k">Pronunciation</div></div>
         <div class="score"><div class="n" id="hScore">0<small>/7</small></div><div class="k">Phrase use</div></div>
         <div class="score"><div class="n" id="gScore">0<small>/6</small></div><div class="k">Grammar</div></div>
-        <div class="score total"><div class="n" id="tScore">0<small>/20</small></div><div class="k">Total</div></div>
+        <div class="score"><div class="n" id="wScore">0<small>/5</small></div><div class="k">Effort (words)</div></div>
+        <div class="score total"><div class="n" id="tScore">0<small>/25</small></div><div class="k">Total</div></div>
       </div>
       <div class="found" id="foundPhrases"></div>
       <div style="margin-top:16px">
@@ -309,6 +310,7 @@ function setPrompt(cls){
 const UNITS = {
   "1": {
     title: "The Cashless Society",
+    question: "Should Japan become cashless?",
     goal: "Discussing opinions",
     groups: {
       "Asking for an opinion": ["Do you think the world should become cashless?","What do you think?","What’s your opinion?"],
@@ -318,6 +320,7 @@ const UNITS = {
   },
   "2": {
     title: "Fast Fashion",
+    question: "Should the government ban fast fashion?",
     goal: "Asking questions if you didn’t hear or understand",
     groups: {
       "Interrupting": ["Sorry, but …","Excuse me …","I’m sorry to interrupt, but …"],
@@ -327,6 +330,7 @@ const UNITS = {
   },
   "3": {
     title: "Plastic Packaging",
+    question: "Should Japan become plastic-free?",
     goal: "Agreeing and disagreeing",
     groups: {
       "Agreeing": ["I agree. As you said, …","I think so too. Adding to what you said, …","That’s a good point.","Exactly!"],
@@ -336,6 +340,7 @@ const UNITS = {
   },
   "4": {
     title: "Cell Phone Etiquette",
+    question: "Should cell phones be banned in public places?",
     goal: "Giving yourself time to think",
     groups: {
       "Thinking sound": ["Hmm","Uh","Um"],
@@ -346,6 +351,7 @@ const UNITS = {
   },
   "6": {
     title: "Social Media",
+    question: "Should the Japanese government require people to use their real names on social media?",
     goal: "Continuing a discussion",
     groups: {
       "Reacting": ["That’s a good point.","That’s interesting.","Is that right?","Oh yeah?","Really?","I didn’t know that."],
@@ -354,6 +360,7 @@ const UNITS = {
   },
   "10": {
     title: "Voting Age",
+    question: "What age should people be allowed to vote, get married, drink alcohol, get a driver’s license, smoke, or get a credit card?",
     goal: "Checking your understanding",
     groups: {
       "Checking understanding": ["Can I check my understanding?","Did you say that …?","You mean that …?","So you think that …?","Is that correct?"],
@@ -364,6 +371,7 @@ const UNITS = {
   },
   "11": {
     title: "Rethinking Zoos",
+    question: "Should zoos be banned?",
     goal: "Leading a discussion",
     groups: {
       "Introducing the topic": ["Today’s topic is …","Today we’re going to discuss …"],
@@ -375,6 +383,7 @@ const UNITS = {
   },
   "12": {
     title: "Alternative Energy",
+    question: "Discuss the pros and cons of different energy sources. Which should Japan prioritise?",
     goal: "Discussing the pros and cons of something",
     groups: {
       "Asking about pros and cons": ["What are the pros and cons of …?","What are the advantages of …?","What are the disadvantages of …?"],
@@ -384,6 +393,7 @@ const UNITS = {
   },
   "15": {
     title: "Britain’s Royal Family",
+    question: "Does the Royal Family have a right to privacy? Should it receive money from the government? Is it useful for the country?",
     goal: "Summarizing a discussion",
     groups: {
       "Introducing the summary": ["So, let me summarize our discussion.","I’d like to summarize our thoughts about this question."],
@@ -395,6 +405,7 @@ const UNITS = {
   /* ---- Fri 5: discussion-skill phrase bank (not textbook units) ---- */
   "F5-1": {
     title: "Participating in a Discussion",
+    question: "Discuss your group presentation topic, contributing facts, opinions, questions, and conclusions.",
     goal: "contribute to a discussion with facts, opinions, questions, and conclusions",
     groups: {
       "State a fact": ["I hear that …","I saw on the news last night that …","According to …,"],
@@ -406,6 +417,7 @@ const UNITS = {
   },
   "F5-2": {
     title: "Leading a Discussion",
+    question: "Lead your group’s discussion: set the agenda and manage who speaks.",
     goal: "lead a discussion by setting the agenda and controlling participation",
     groups: {
       "Getting started": ["Thank you for coming here today.","Today we're going to talk about …"],
@@ -418,6 +430,7 @@ const UNITS = {
   },
   "F5-3": {
     title: "Controlling a Discussion",
+    question: "Keep your group’s discussion going with questions, clarifications, and summaries.",
     goal: "keep a discussion going with questions, clarifications, and summaries",
     groups: {
       "Questions": ["Why …?","How …?"],
@@ -637,7 +650,6 @@ function viewStudent(){
   $('logoutBtn').textContent='Sign out';
   $('resultsTitle').textContent='Your evaluations';
   fillUnits(S.cls); setPrompt(S.cls); renderPhrases(); showMyResults();
-  watchSession(S.cls);
 }
 function previewStudent(cls){
   S={ id:'preview_'+cls, cls, sn:'PREVIEW', doc:{cls, sn:'PREVIEW', evals:[]}, preview:true };
@@ -678,7 +690,9 @@ function renderPhrases(){
   const u = $('unit').value || unitsForClass(S?S.cls:'wed2')[0];
   const d = UNITS[u];
   if(!d){ $('phrasebox').innerHTML=''; return; }
-  let html = `<div class="goal">GOAL: Learn how to ${d.goal.toLowerCase()}</div>`;
+  let html = '';
+  if(d.question){ html += `<div class="qbox"><div class="qlabel">Discussion question</div><div class="qtext">${esc(d.question)}</div></div>`; }
+  html += `<div class="goal">GOAL: Learn how to ${d.goal.toLowerCase()}</div>`;
   html += `<h3>Useful phrases — ${unitLabel(u)}</h3>`;
   for(const g in d.groups){
     html += `<div class="cat">${g}</div><ul>`;
@@ -696,6 +710,18 @@ function ownWordCount(text, unit){
   phraseMatchers(unit).forEach(m=>{ if(m.re.test(low)) low=low.replace(new RegExp(m.re.source,'g'),' '); });
   low = low.replace(/\s+/g,' ').trim();
   return low ? low.split(' ').filter(Boolean).length : 0;
+}
+
+/* ---- Effort by word count (0–5) ----
+   The more a student says within the time limit, the higher the effort score.
+   Scale (teacher-set): 300+ words = 5, 200+ = 4, 100+ = 3, below 100 = 0. */
+function countWords(text){ return String(text||'').trim().split(/\s+/).filter(Boolean).length; }
+function wordScore(text){
+  const w=countWords(text);
+  if(w>=300) return 5;
+  if(w>=200) return 4;
+  if(w>=100) return 3;
+  return 0;
 }
 
 /* ---- Grammatical accuracy (0–6), automated estimate ----
@@ -843,31 +869,32 @@ function renderSession(cls,s){
   }
 
   if(!sessReady){
-    // show Ready button (one tap → unlock mic, mark ready)
-    box.className = live ? 'sessionbox joinnow' : 'sessionbox armed';
-    box.innerHTML = (live
-        ? '<b style="font-size:16px">⏺ A group recording is in progress!</b><br>Tap the button to join now — you’ll record for the time remaining.'
-        : 'Your teacher will start a group recording soon.')
-      + '<div style="margin-top:10px"><button id="readyBtn"'+(live?' class="joinbtn"':'')+'>'+(live?'▶ Join the recording now':'I’m ready')+'</button>'
+    // One-time microphone permission. Browsers REQUIRE a user tap before a mic
+    // can open, so this single "allow microphone" tap is unavoidable — but it is
+    // the only button. After it, recording begins automatically when the teacher
+    // presses Start (no "start"/"join" button for the student to press).
+    box.className='sessionbox armed';
+    box.innerHTML = '<b>Get ready.</b> Tap once to allow your microphone, then wait — your recording will start automatically when your teacher says “Start.”'
+      + '<div style="margin-top:10px"><button id="readyBtn">🎤 Tap once to allow microphone</button>'
       + ' <span class="hint" id="readyMsg" style="margin:0"></span></div>';
     $('readyBtn').onclick = ()=>armReady(cls);
     return;
   }
 
-  // student is ready
+  // Student is ready (mic allowed). Everything from here is automatic.
   if(live){
     box.className='sessionbox live';
-    box.innerHTML='<b>Recording in progress</b> — speak now. It will stop automatically.';
-    // auto-start once per round
+    box.innerHTML='<b>● Recording now</b> — speak your discussion. It will stop automatically when time is up.';
+    // Auto-start once per round. This also covers a student who allowed the mic
+    // AFTER the teacher pressed Start — they simply begin with the time left.
     if(sessHandledRound!==s.round && !recog){
       sessHandledRound=s.round;
-      // ensure an activity is selected
       if(!$('unit').value && $('unit').options.length) $('unit').selectedIndex=0;
       startRec(remaining);
     }
   }else{
     box.className='sessionbox armed';
-    box.innerHTML='<b>Ready.</b> Waiting for your teacher to start…';
+    box.innerHTML='<b>Ready.</b> Waiting for your teacher to say “Start”…';
   }
 }
 
@@ -892,30 +919,39 @@ async function armReady(cls){
 let recog=null, finalText="", results=null;
 
 /* ---- countdown timer ---- */
-let timerInt=null, timerLeft=0;
+// Timestamp-based countdown: we remember an absolute end time and compute the
+// remaining seconds from the wall clock each tick. This is immune to setInterval
+// drift and to background-tab/locked-screen throttling, so the timer stays
+// accurate and in sync with the teacher's (both derive from the same length),
+// and it never ends early or runs long on a busy device.
+let timerInt=null, timerLeft=0, timerEndAt=0;
 function fmtTime(s){ s=Math.max(0,s|0); const m=Math.floor(s/60); const ss=s%60; return m+':'+(ss<10?'0':'')+ss; }
 function resetTimerDisplay(){
   const sel=$('timerLen'); const secs=sel?parseInt(sel.value,10):300;
-  timerLeft=secs; const t=$('timer'); if(t){ t.textContent=fmtTime(secs); t.classList.remove('low'); }
+  timerLeft=secs; timerEndAt=0; const t=$('timer'); if(t){ t.textContent=fmtTime(secs); t.classList.remove('low'); }
 }
 function startTimer(overrideSecs){
   const sel=$('timerLen'); if(sel) sel.disabled=true;
-  const secs=(overrideSecs!=null?overrideSecs:(sel?parseInt(sel.value,10):300)); timerLeft=secs;
+  const secs=(overrideSecs!=null?overrideSecs:(sel?parseInt(sel.value,10):300));
+  timerLeft=secs; timerEndAt=Date.now()+secs*1000;
   const t=$('timer'); if(t){ t.textContent=fmtTime(timerLeft); t.classList.remove('low'); }
   runTimer();
 }
-// Start/resume the countdown ticking from the current timerLeft.
+// Tick the countdown by reading the wall clock (not by decrementing a counter).
 function runTimer(){
   const t=$('timer');
   if(timerInt) clearInterval(timerInt);
-  timerInt=setInterval(()=>{
-    timerLeft--;
+  if(!timerEndAt) timerEndAt=Date.now()+timerLeft*1000; // resuming after a pause
+  const tick=()=>{
+    timerLeft=Math.max(0, Math.round((timerEndAt-Date.now())/1000));
     if(t){ t.textContent=fmtTime(timerLeft); if(timerLeft<=30) t.classList.add('low'); }
     if(timerLeft<=0){ clearInterval(timerInt); timerInt=null; stopRec(); } // auto-stop at zero
-  },1000);
+  };
+  tick();
+  timerInt=setInterval(tick,500); // 500ms keeps the display crisp; value comes from the clock
 }
-function pauseTimer(){ if(timerInt){ clearInterval(timerInt); timerInt=null; } } // freeze; keep timerLeft
-function stopTimer(){ if(timerInt){ clearInterval(timerInt); timerInt=null; } const sel=$('timerLen'); if(sel) sel.disabled=false; }
+function pauseTimer(){ if(timerInt){ clearInterval(timerInt); timerInt=null; } timerEndAt=0; } // freeze; keep timerLeft
+function stopTimer(){ if(timerInt){ clearInterval(timerInt); timerInt=null; } timerEndAt=0; const sel=$('timerLen'); if(sel) sel.disabled=false; }
 
 /* ---- live sound meter (own mic stream via Web Audio; independent of speech
    recognition, so it never affects scoring or the transcript) ---- */
@@ -1011,9 +1047,24 @@ function buildRecognizer(){
     }
     $('transcript').textContent = (finalText+interim).trim() || "Listening…";
   };
-  r.onerror = e=>{ $('recLive').textContent = "Mic error: "+e.error; };
+  r.onerror = e=>{
+    // "no-speech"/"aborted" are routine; a transient error shouldn't kill the
+    // whole recording. Only surface real mic/permission problems.
+    if(e && (e.error==='not-allowed' || e.error==='service-not-allowed' || e.error==='audio-capture')){
+      $('recLive').textContent = "Mic error: "+e.error;
+    }
+  };
   r.onend = ()=>{
     if(paused) return;           // paused → don't finalize/score; wait for Resume
+    // The Web Speech recognizer stops itself after silence or ~60s on some
+    // browsers. If the timer is still running, the student's time isn't up yet,
+    // so restart recognition to keep capturing instead of ending the recording.
+    if(recog===r && timerInt && timerLeft>1){
+      try{ r.start(); return; }catch(e){
+        // some engines need a brand-new instance to restart
+        try{ recog=buildRecognizer(); recog.start(); return; }catch(e2){}
+      }
+    }
     r._avgConf = confN? (confSum/confN) : null;
     finishRec(r._avgConf);
   };
@@ -1090,7 +1141,8 @@ function score(text, avgConf){
     $('pScore').innerHTML = '—<small>/7</small>';
     $('hScore').innerHTML = '—<small>/7</small>';
     $('gScore').innerHTML = '—<small>/6</small>';
-    $('tScore').innerHTML = '—<small>/20</small>';
+    if($('wScore')) $('wScore').innerHTML = '—<small>/5</small>';
+    $('tScore').innerHTML = '—<small>/25</small>';
     $('foundPhrases').innerHTML = '<b>No score yet.</b> You need to give your own <b>opinions and reasons</b> — not just the discussion phrases. Speak your opinion <b>between</b> the phrases (for example, after “I strongly believe that …”, say <i>why</i>), then record again.';
     $('submitBtn').disabled = true;
     $('submitMsg').textContent = '';
@@ -1132,18 +1184,22 @@ function score(text, avgConf){
 
   // ---- Grammatical accuracy /6 (automated estimate) ----
   const grammar = grammarScore(text);
+  // ---- Effort by word count /5 ----
+  const words = wordScore(text);
+  const wc = countWords(text);
 
   results = {
     unit:u, unitTitle:UNITS[u].title,
-    pronunciation:pron, phrase:phraseScore, grammar:grammar,
-    total:pron+phraseScore+grammar,
+    pronunciation:pron, phrase:phraseScore, grammar:grammar, words:words, wordCount:wc,
+    total:pron+phraseScore+grammar+words,
     phrasesUsed:uniqueFound, transcript:text
   };
 
   $('pScore').innerHTML = pron+'<small>/7</small>';
   $('hScore').innerHTML = phraseScore+'<small>/7</small>';
   $('gScore').innerHTML = grammar+'<small>/6</small>';
-  $('tScore').innerHTML = (pron+phraseScore+grammar)+'<small>/20</small>';
+  if($('wScore')) $('wScore').innerHTML = words+'<small>/5</small>';
+  $('tScore').innerHTML = (pron+phraseScore+grammar+words)+'<small>/25</small>';
   $('foundPhrases').innerHTML = uniqueFound.length
     ? "Target phrases detected: " + uniqueFound.map(p=>`<span class="chip">${p}</span>`).join("")
     : "No target phrases detected yet — try using the phrases from the box above.";
@@ -1160,7 +1216,8 @@ async function submit(){
   if(!results || !S) return;
   const trial = ((S.doc && S.doc.evals ? S.doc.evals.length : 0) + 1); // 1st, 2nd, 3rd…
   const ev={ ts:Date.now(), trial:trial, unit:results.unit, unitTitle:results.unitTitle,
-             pron:results.pronunciation, phrase:results.phrase, grammar:results.grammar, total:results.total,
+             pron:results.pronunciation, phrase:results.phrase, grammar:results.grammar,
+             words:results.words, wordCount:results.wordCount, total:results.total,
              phrases:results.phrasesUsed, transcript:results.transcript };
   if(S.preview){ S.doc.evals.push(ev); $('submitBtn').disabled=true; $('submitMsg').textContent='Preview — not saved.'; showMyResults(); return; }
   $('submitBtn').disabled=true; $('submitMsg').textContent='Submitting…';
@@ -1180,7 +1237,8 @@ function mirrorToSheet(ev){
       body:JSON.stringify({
         studentId:S.sn, class:(CLASSMETA[S.cls]||S.cls), trial:ev.trial,
         unit:ev.unit, unitTitle:ev.unitTitle,
-        pronunciation:ev.pron, phrase:ev.phrase, grammar:ev.grammar, total:ev.total,
+        pronunciation:ev.pron, phrase:ev.phrase, grammar:ev.grammar,
+        words:ev.words, wordCount:ev.wordCount, total:ev.total,
         phrasesUsed:(ev.phrases||[]).join(' | '), transcript:ev.transcript
       })
     }).catch(()=>{});
@@ -1194,9 +1252,9 @@ function showMyResults(){
       <td class="num">${ordinal(o.trial)}</td>
       <td>${new Date(o.x.ts).toLocaleString('en-GB')}</td>
       <td>${esc(evUnitText(o.x.unit,o.x.unitTitle))}</td>
-      <td class="num">${o.x.pron}</td><td class="num">${o.x.phrase}</td><td class="num">${o.x.grammar!=null?o.x.grammar:'—'}</td><td class="num">${o.x.total}/20</td>
+      <td class="num">${o.x.pron}</td><td class="num">${o.x.phrase}</td><td class="num">${o.x.grammar!=null?o.x.grammar:'—'}</td><td class="num">${o.x.words!=null?o.x.words:'—'}</td><td class="num">${o.x.total}/25</td>
     </tr>`).join('');
-  body.innerHTML=`<table><thead><tr><th>Trial</th><th>When</th><th>Unit</th><th>Pron.</th><th>Phrase</th><th>Gram.</th><th>Total</th></tr></thead><tbody>${rows}</tbody></table>`;
+  body.innerHTML=`<table><thead><tr><th>Trial</th><th>When</th><th>Unit</th><th>Pron.</th><th>Phrase</th><th>Gram.</th><th>Words</th><th>Total</th></tr></thead><tbody>${rows}</tbody></table>`;
 }
 
 /* ------------------ teacher dashboard ------------------ */
@@ -1225,36 +1283,12 @@ async function renderTeacher(cls){
     <div style="margin:0 0 12px;display:flex;gap:8px;flex-wrap:wrap;align-items:center">
       <button class="ghost" onclick="previewStudent('${cls}')">▸ Preview as a student</button>
       <button class="ghost" onclick="downloadClassExcel('${cls}')">⬇ Download as Excel</button>
+      <button class="ghost" onclick="backfillWordScores('${cls}')">↻ Recompute word scores</button>
       ${SHEET_URL?`<button class="ghost" onclick="exportClassToSheet('${cls}')">⬆ Export this class to Sheet</button><span class="hint" id="exportMsg" style="margin:0"></span>`:''}
-      <span class="hint" id="dlMsg" style="margin:0"></span>
-    </div>
-    <div class="subcard" id="sessionPanel" style="margin:0 0 14px">
-      <label>Group recording — start all ready ${CLASSMETA[cls]} students together</label>
-      <div class="row" style="align-items:flex-end">
-        <div style="flex:0 0 auto">
-          <span class="hint" style="display:block;margin:0 0 4px">${cls==='fri5'?'Activity':'Unit'}</span>
-          <select id="sessUnit" style="width:auto">
-            ${unitsForClass(cls).map(u=>`<option value="${u}">${esc(unitLabel(u))}</option>`).join('')}
-          </select>
-        </div>
-        <div style="flex:0 0 auto">
-          <span class="hint" style="display:block;margin:0 0 4px">Length</span>
-          <select id="sessLen" style="width:auto">
-            <option value="180">3 min</option><option value="300" selected>5 min</option>
-            <option value="420">7 min</option><option value="600">10 min</option>
-          </select>
-        </div>
-        <div style="flex:0 0 auto;display:flex;gap:8px;align-items:center">
-          <button id="sessStartBtn" onclick="teacherStartSession('${cls}')">▶ Start recording for ${CLASSMETA[cls]}</button>
-          <button id="sessStopBtn" class="secondary hidden" onclick="teacherStopSession('${cls}')">Stop</button>
-          <span class="timer" id="sessTimer" style="display:none"></span>
-        </div>
-      </div>
-      <p class="hint" id="sessMsg" style="margin:8px 0 0">Students tap “I’m ready” on their screen (to allow the microphone), then press Start here and everyone records together.</p>
+      <span class="hint" id="dlMsg" style="margin:0"></span><span class="hint" id="bfMsg" style="margin:0"></span>
     </div>
     <div id="rosterArea"></div>`;
   renderRoster(cls, docs);
-  watchTeacherSession(cls);
   startRosterAutoRefresh(cls);
 }
 
@@ -1282,7 +1316,7 @@ function renderRoster(cls, docs){
 
   const avg=a=>a.length?(a.reduce((x,y)=>x+y,0)/a.length):null;
   const r1=v=>v==null?'—':(Math.round(v*10)/10);
-  const fmt=v=>v==null?'—':r1(v)+'/20';
+  const fmt=v=>v==null?'—':r1(v)+'/25';
 
   // body rows: one column per unit (first-attempt score), then avg of first tries
   const bodyRows=ROSTERS[cls].map(sn=>{
@@ -1319,7 +1353,7 @@ function renderRoster(cls, docs){
   </div>`;
 
   area.innerHTML=stats
-    + `<p class="hint">${CLASSMETA[cls]} · each cell is the student’s <b>first-attempt</b> score (/20) for that unit; columns are ${cls==='fri5'?'activities A1–A3':'units'}. The right column averages each student’s first attempts; the bottom row is the class average per unit. Tap <b>View</b> for details and password controls. <span class="hint" id="rosterLive" style="color:var(--good)">· live</span></p>`
+    + `<p class="hint">${CLASSMETA[cls]} · each cell is the student’s <b>first-attempt</b> score (/25) for that unit; columns are ${cls==='fri5'?'activities A1–A3':'units'}. The right column averages each student’s first attempts; the bottom row is the class average per unit. Tap <b>View</b> for details and password controls. <span class="hint" id="rosterLive" style="color:var(--good)">· live</span></p>`
     + `<div style="overflow-x:auto"><table class="gridtable"><thead><tr><th>Student</th>${headUnitCols}<th class="num">Avg&nbsp;(1st)</th><th></th></tr></thead>`
     + `<tbody>${bodyRows}</tbody><tfoot>${footRow}</tfoot></table></div>`;
 }
@@ -1415,7 +1449,7 @@ async function downloadClassExcel(cls){
   const msg=$('dlMsg');
   if(msg){ msg.className='hint'; msg.textContent='Preparing…'; }
   let docs=[]; try{ docs=await classDocs(cls); }catch(e){ if(msg) msg.textContent='Could not read class data.'; return; }
-  const header=['Timestamp','StudentID','Class','Trial','Unit','UnitTitle','Pronunciation','Phrase','Grammar','Total','PhrasesUsed','Transcript'];
+  const header=['Timestamp','StudentID','Class','Trial','Unit','UnitTitle','Pronunciation','Phrase','Grammar','Words','WordCount','Total','PhrasesUsed','Transcript'];
   const rows=[header];
   docs.forEach(d=>{ (d.evals||[]).forEach((ev,i)=>{
     rows.push([
@@ -1423,7 +1457,8 @@ async function downloadClassExcel(cls){
       d.sn, (CLASSMETA[cls]||cls), (ev.trial!=null?ev.trial:i+1),
       ev.unit, ev.unitTitle,
       (ev.pron!=null?ev.pron:''), (ev.phrase!=null?ev.phrase:''),
-      (ev.grammar!=null?ev.grammar:''), (ev.total!=null?ev.total:''),
+      (ev.grammar!=null?ev.grammar:''), (ev.words!=null?ev.words:''), (ev.wordCount!=null?ev.wordCount:''),
+      (ev.total!=null?ev.total:''),
       (ev.phrases||[]).join(' | '), (ev.transcript||'')
     ]);
   }); });
@@ -1456,7 +1491,7 @@ async function downloadClassExcel(cls){
       XLSX.utils.book_append_sheet(wb, ws1, 'Summary (1st)');
       // Sheet 2: all raw submissions
       const ws=XLSX.utils.aoa_to_sheet(rows);
-      ws['!cols']=[{wch:20},{wch:12},{wch:8},{wch:6},{wch:6},{wch:22},{wch:12},{wch:8},{wch:8},{wch:8},{wch:40},{wch:60}];
+      ws['!cols']=[{wch:20},{wch:12},{wch:8},{wch:6},{wch:6},{wch:22},{wch:12},{wch:8},{wch:8},{wch:7},{wch:10},{wch:8},{wch:40},{wch:60}];
       XLSX.utils.book_append_sheet(wb, ws, 'All submissions');
       XLSX.writeFile(wb, base+'.xlsx');
       if(msg) msg.textContent='Downloaded '+(rows.length-1)+' row(s).';
@@ -1470,6 +1505,36 @@ async function downloadClassExcel(cls){
   if(msg) msg.textContent='Downloaded '+(rows.length-1)+' row(s) (CSV — opens in Excel).';
 }
 
+// Back-fill the word-count effort score (/5) onto EXISTING records that were
+// saved before this criterion existed, computing it from each saved transcript
+// and recomputing the /25 total. Idempotent — safe to run more than once.
+async function backfillWordScores(cls){
+  const msg=$('bfMsg');
+  if(!confirm('Recompute the word-count score for every '+CLASSMETA[cls]+' student from their saved transcripts, and update their totals to /25?\n\nThis is safe to run again later.')) return;
+  if(msg){ msg.className='hint'; msg.textContent='Recomputing…'; }
+  const roster=ROSTERS[cls]||[];
+  let changed=0, students=0;
+  for(const sn of roster){
+    const id=cls+'_'+sn; let d=null;
+    try{ d=await loadDoc(id); }catch(e){ continue; }
+    if(!d || !d.evals || !d.evals.length) continue;
+    let touched=false;
+    d.evals.forEach(ev=>{
+      const w=wordScore(ev.transcript||'');
+      const wc=countWords(ev.transcript||'');
+      // recompute total from components so re-running can't double-count
+      const base=(Number(ev.pron)||0)+(Number(ev.phrase)||0)+(Number(ev.grammar)||0);
+      const newTotal=base+w;
+      if(ev.words!==w || ev.wordCount!==wc || ev.total!==newTotal){ ev.words=w; ev.wordCount=wc; ev.total=newTotal; touched=true; }
+    });
+    if(touched){ try{ await saveDoc(id,d); changed++; }catch(e){} }
+    students++;
+    if(msg) msg.textContent='Recomputing… '+students+'/'+roster.length;
+  }
+  if(msg) msg.textContent='Done — updated '+changed+' student record(s). Totals are now /25.';
+  try{ renderRoster(cls, await classDocs(cls)); }catch(e){}
+}
+
 async function teacherStudent(cls,sn){
   const c=$('teacherCard'); c.innerHTML='<p class="empty">Loading…</p>';
   const id=cls+'_'+sn; let d=null; try{ d=await loadDoc(id); }catch(e){}
@@ -1478,16 +1543,16 @@ async function teacherStudent(cls,sn){
       <td class="num">${ordinal(o.trial)}</td>
       <td>${new Date(o.e.ts).toLocaleString('en-GB')}</td>
       <td>${esc(evUnitText(o.e.unit,o.e.unitTitle))}</td>
-      <td class="num">${o.e.pron}</td><td class="num">${o.e.phrase}</td><td class="num">${o.e.grammar!=null?o.e.grammar:'—'}</td><td class="num">${o.e.total}/20</td></tr>
-    <tr class="trow2"><td colspan="7">
-      <div class="hint" style="margin:0 0 4px">Target phrases: ${o.e.phrases&&o.e.phrases.length?o.e.phrases.map(esc).join(' · '):'—'}</div>
+      <td class="num">${o.e.pron}</td><td class="num">${o.e.phrase}</td><td class="num">${o.e.grammar!=null?o.e.grammar:'—'}</td><td class="num">${o.e.words!=null?o.e.words:'—'}</td><td class="num">${o.e.total}/25</td></tr>
+    <tr class="trow2"><td colspan="8">
+      <div class="hint" style="margin:0 0 4px">Words: ${o.e.wordCount!=null?o.e.wordCount:'—'} · Target phrases: ${o.e.phrases&&o.e.phrases.length?o.e.phrases.map(esc).join(' · '):'—'}</div>
       <details><summary>Transcript</summary><div class="transcript" style="margin-top:6px">${esc(o.e.transcript||'')}</div></details>
     </td></tr>`).join('');
   c.innerHTML=`<div style="display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:10px">
       <h2 style="margin:0;font-size:20px">${esc(sn)}</h2>
       <button class="ghost" onclick="renderTeacher('${cls}')">‹ Back to list</button></div>
     <p class="hint">${CLASSMETA[cls]} · ${ev.length} evaluation(s)${d?'':' · no account yet'}</p>
-    ${ev.length?`<table><thead><tr><th>Trial</th><th>When</th><th>Unit</th><th>Pron.</th><th>Phrase</th><th>Gram.</th><th>Total</th></tr></thead><tbody>${rows}</tbody></table>`:'<p class="empty">No evaluations submitted yet.</p>'}
+    ${ev.length?`<table><thead><tr><th>Trial</th><th>When</th><th>Unit</th><th>Pron.</th><th>Phrase</th><th>Gram.</th><th>Words</th><th>Total</th></tr></thead><tbody>${rows}</tbody></table>`:'<p class="empty">No evaluations submitted yet.</p>'}
     <div class="subcard">
       <label>Set / edit password</label>
       <div class="row"><div><input type="text" id="spw" placeholder="New password" autocomplete="off"></div>
