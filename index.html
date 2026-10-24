@@ -168,7 +168,10 @@
     </div>
     <div class="whoami hidden" id="whoami">
       <div>Signed in as <b id="whoName"></b><span id="whoTeacher"></span></div>
-      <button class="ghost" id="logoutBtn">Sign out</button>
+      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:4px">
+        <button class="ghost hidden" id="returnBtn">↩ Return to sign-in</button>
+        <button class="ghost" id="logoutBtn">Sign out</button>
+      </div>
     </div>
   </header>
 
@@ -643,11 +646,12 @@ function clearSessionWatchers(){
   if(typeof tSessTick!=='undefined' && tSessTick){ clearInterval(tSessTick); tSessTick=null; }
   if(typeof rosterTimer!=='undefined' && rosterTimer){ clearInterval(rosterTimer); rosterTimer=null; }
 }
-function viewLogin(){ clearSessionWatchers(); hideAll(); show($('loginCard')); hide($('whoami')); S=null; $('loginMsg').textContent=''; $('pw').value=''; }
+function viewLogin(){ clearSessionWatchers(); hideAll(); show($('loginCard')); hide($('whoami')); hide($('returnBtn')); S=null; $('loginMsg').textContent=''; $('pw').value=''; }
 function viewStudent(){
   hideAll(); show($('recordCard')); show($('resultsCard')); show($('whoami'));
   $('whoName').textContent=S.sn; $('whoTeacher').textContent=' · '+CLASSMETA[S.cls];
   $('logoutBtn').textContent='Sign out';
+  show($('returnBtn'));   // quick way back to the sign-in screen (no full sign-out needed)
   $('resultsTitle').textContent='Your evaluations';
   fillUnits(S.cls); setPrompt(S.cls); renderPhrases(); showMyResults();
 }
@@ -656,6 +660,7 @@ function previewStudent(cls){
   hideAll(); show($('recordCard')); show($('resultsCard')); show($('whoami'));
   $('whoName').textContent='Preview'; $('whoTeacher').textContent=' · '+CLASSMETA[cls]+' — nothing is saved';
   $('logoutBtn').textContent='‹ Back to dashboard';
+  hide($('returnBtn'));   // preview already uses the button above to return to the dashboard
   $('resultsTitle').textContent='Preview evaluations (this session only)';
   fillUnits(cls); setPrompt(cls); renderPhrases(); showMyResults();
 }
@@ -712,16 +717,70 @@ function ownWordCount(text, unit){
   return low ? low.split(' ').filter(Boolean).length : 0;
 }
 
-/* ---- Effort by word count (0–5) ----
-   The more a student says within the time limit, the higher the effort score.
-   Scale (teacher-set): 300+ words = 5, 200+ = 4, 100+ = 3, below 100 = 0. */
+/* ---- Effort by MEANINGFUL word count (0–5) ----
+   Words should be relevant to the topic and carry the student's own opinions,
+   reasons, and reactions — not filler or mere recitation of the fixed phrases.
+   A browser can't truly judge meaning, so this is a fair approximation:
+     • strip common filler words (um, like, you know, yeah, …),
+     • subtract the fixed discussion-phrase words (so reciting phrases doesn't
+       inflate the count),
+     • require a minimum of topic-related words, or the score is capped — this
+       stops off-topic padding from earning high marks.
+   The remaining "content word" count is then scored on the teacher's scale:
+   200+ = 5, 120+ = 4, 60+ = 3, below 60 = 0 (counting real words, filler removed). */
+
+// Topic keyword sets (lowercase, apostrophes already stripped by _normP). Used
+// only as a light relevance guard, not a strict vocabulary requirement.
+const TOPIC_KEYWORDS = {
+ "1":["cash","cashless","money","card","cards","credit","debit","payment","payments","pay","paying","app","apps","coins","bills","wallet","bank","atm","digital","online","shop","shops","store","convenient","safe","safety","sweden","japan"],
+ "2":["fashion","clothes","clothing","clothed","wear","wearing","fast","brand","brands","cheap","expensive","factory","factories","waste","wasteful","recycle","recycling","donate","landfill","environment","environmental","pollution","textile","buy","buying","throw","cotton"],
+ "3":["plastic","plastics","packaging","package","bag","bags","bottle","bottles","waste","recycle","recycling","reusable","environment","environmental","ocean","pollution","ban","single","use","straw","straws","food","fresh"],
+ "4":["phone","phones","cell","mobile","smartphone","call","calls","message","text","texting","public","restaurant","restaurants","train","trains","bus","school","etiquette","manners","rude","ban","banned","screen","app"],
+ "6":["social","media","online","internet","post","posts","comment","comments","name","names","anonymous","anonymity","account","accounts","follower","followers","bully","bullying","harassment","privacy","real","platform","facebook","instagram","twitter"],
+ "10":["vote","voting","voter","election","elections","age","young","teenager","teenagers","adult","adults","politics","political","government","mature","maturity","drink","alcohol","smoke","smoking","license","marry","married","credit","responsible"],
+ "11":["zoo","zoos","animal","animals","aquarium","aquariums","cage","cages","wild","wildlife","captivity","captive","conservation","species","endangered","breeding","welfare","stress","pet","pets","elephant","tiger","nature"],
+ "12":["energy","power","solar","wind","nuclear","biomass","fossil","fuel","fuels","coal","gas","oil","hydro","hydroelectric","renewable","electricity","clean","environment","emissions","carbon","co2","climate","advantage","advantages","disadvantage","disadvantages","pros","cons","reliable","expensive"],
+ "15":["royal","royalty","family","queen","king","prince","princess","monarchy","monarch","privacy","private","public","tax","taxes","money","government","tourism","tourist","tradition","country","britain","british","media","newspaper","gossip"],
+ "F5-1":["topic","presentation","data","graph","opinion","fact","facts","reason","reasons","question","questions","conclusion","example","think","believe","because","agree","disagree","group","discussion"],
+ "F5-2":["topic","presentation","discussion","agenda","time","minutes","person","speaker","next","start","begin","lead","leader","question","everyone","group","move","finish","conclude"],
+ "F5-3":["topic","presentation","discussion","question","mean","clarify","summary","summarize","agree","understand","explain","example","group","point","idea","english"]
+};
+// Common spoken filler to exclude from the meaningful count.
+const _FILLER=new Set(["um","uh","umm","uhh","er","err","ah","eh","hmm","mm","mmm","like","yeah","yep","yup","okay","ok","so","well","right","actually","basically","literally","just","kind","sort","really","very","maybe","and","or","the","a","an","is","are","was","were","to","of","in","on","it","its","this","that","i","you","we","they","he","she","my","your","our","their","for","but","with","at","as","be","do","did","does","have","has","had","will","would","can","could","should"]);
+
 function countWords(text){ return String(text||'').trim().split(/\s+/).filter(Boolean).length; }
-function wordScore(text){
-  const w=countWords(text);
-  if(w>=300) return 5;
-  if(w>=200) return 4;
-  if(w>=100) return 3;
-  return 0;
+
+// Count the student's own meaningful words: total words, minus the fixed-phrase
+// words, minus filler. Returns {content, topic, raw}.
+function meaningfulWordStats(text, unit){
+  const raw = countWords(text);
+  // 1) remove detected fixed-phrase sequences so recitation doesn't count
+  let low = _normP(text);
+  phraseMatchers(unit).forEach(m=>{ if(m.re.test(low)) low=low.replace(new RegExp(m.re.source,'g'),' '); });
+  const words = low.replace(/\s+/g,' ').trim().split(' ').filter(Boolean);
+  // 2) drop filler words
+  const content = words.filter(w=>!_FILLER.has(w));
+  // 3) count topic-related words
+  const kw = new Set(TOPIC_KEYWORDS[unit]||[]);
+  const topic = content.filter(w=>kw.has(w)).length;
+  return { content: content.length, topic: topic, raw: raw };
+}
+
+function _fillerCount(text){ return _normP(text).trim().split(' ').filter(w=>_FILLER.has(w)).length; }
+function wordScore(text, unit){
+  const st = meaningfulWordStats(text, unit);
+  // Score on the amount said (your thresholds), but counting real words only —
+  // filler (um, like, yeah…) does not inflate the count.
+  const w = Math.max(0, st.raw - _fillerCount(text));
+  let s = (w>=200)?5 : (w>=120)?4 : (w>=60)?3 : 0;   // real words (filler removed)
+  // Relevance guard: a long answer that is almost entirely off-topic probably
+  // wandered from the question, so cap the effort score. Scaled to length, so a
+  // genuine on-topic answer is never punished.
+  const expectedTopic = Math.max(1, Math.round(w/80)); // ~1 topic word per 80, min 1
+  if(s>0 && st.topic < expectedTopic){
+    s = Math.min(s, st.topic>=1 ? 3 : 1);     // thin relevance → cap 3, none → 1
+  }
+  return s;
 }
 
 /* ---- Grammatical accuracy (0–6), automated estimate ----
@@ -1184,9 +1243,9 @@ function score(text, avgConf){
 
   // ---- Grammatical accuracy /6 (automated estimate) ----
   const grammar = grammarScore(text);
-  // ---- Effort by word count /5 ----
-  const words = wordScore(text);
-  const wc = countWords(text);
+  // ---- Effort by meaningful word count /5 ----
+  const words = wordScore(text, u);
+  const wc = Math.max(0, countWords(text) - _fillerCount(text)); // real words (no filler)
 
   results = {
     unit:u, unitTitle:UNITS[u].title,
@@ -1271,7 +1330,7 @@ function teacherLogin(){
   $('tback').onclick=viewLogin;
 }
 async function renderTeacher(cls){
-  hideAll(); const c=$('teacherCard'); show(c); show($('whoami')); $('whoName').textContent='Teacher'; $('whoTeacher').textContent=' · '+CLASSMETA[cls]; $('logoutBtn').textContent='Sign out';
+  hideAll(); const c=$('teacherCard'); show(c); show($('whoami')); hide($('returnBtn')); $('whoName').textContent='Teacher'; $('whoTeacher').textContent=' · '+CLASSMETA[cls]; $('logoutBtn').textContent='Sign out';
   c.innerHTML='<p class="empty">Loading…</p>';
   let docs; try{ docs=await classDocs(cls); }
   catch(e){ c.innerHTML=`<p class="empty">Couldn’t load class data. <button class="ghost" onclick="renderTeacher('${cls}')">Retry</button></p>`; return; }
@@ -1520,8 +1579,8 @@ async function backfillWordScores(cls){
     if(!d || !d.evals || !d.evals.length) continue;
     let touched=false;
     d.evals.forEach(ev=>{
-      const w=wordScore(ev.transcript||'');
-      const wc=countWords(ev.transcript||'');
+      const w=wordScore(ev.transcript||'', ev.unit);
+      const wc=Math.max(0, countWords(ev.transcript||'') - _fillerCount(ev.transcript||''));
       // recompute total from components so re-running can't double-count
       const base=(Number(ev.pron)||0)+(Number(ev.phrase)||0)+(Number(ev.grammar)||0);
       const newTotal=base+w;
@@ -1602,6 +1661,7 @@ window.addEventListener('DOMContentLoaded', ()=>{
   $('pw').addEventListener('keydown', e=>{ if(e.key==='Enter') doLogin(); });
   $('teacherLink').addEventListener('click', teacherLogin);
   $('logoutBtn').addEventListener('click', logout);
+  $('returnBtn').addEventListener('click', viewLogin);
   $('micCheckBtn').addEventListener('click', micCheck);
   $('recBtn').addEventListener('click', ()=>startRec());
   $('pauseBtn').addEventListener('click', pauseRec);
